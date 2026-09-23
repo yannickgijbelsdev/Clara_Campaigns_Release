@@ -492,7 +492,7 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
           )}
           {smtp && !smtp.configured && (
             <div className="mb-4 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-3">
-              Er is nog geen SMTP-server ingesteld. De campagne wordt in <b>simulatiemodus</b> verstuurd (tracking werkt, maar er gaat geen echte e-mail uit). Stel SMTP in bij <b>E-mail / SMTP</b> om echt te versturen.
+              No SMTP server is set up yet. The campaign will be sent in <b>simulation mode</b> (tracking works, but no real email goes out). Set up SMTP under <b>Email / SMTP</b> to send for real.
             </div>
           )}
           <label className="flex items-center gap-2 mb-3 cursor-pointer">

@@ -22,7 +22,7 @@ const BASE_NAV = [
   { to: "/contacts", label: "Contacts" },
   { to: "/branding", label: "Branding" },
   { to: "/developers", label: "API" },
-  { to: "/integrations", label: "E-mail / SMTP" },
+  { to: "/integrations", label: "Email / SMTP" },
 ];
 
 function WorkspaceSwitcher() {
@@ -357,11 +357,11 @@ export default function AppLayout({ children, title, subtitle, actions }) {
               <AlertCircle className="h-[18px] w-[18px]" />
             </span>
             <div className="text-sm text-slate-600 flex-1 leading-snug">
-              <b className="text-slate-900">Simulatiemodus actief.</b> Er is nog geen SMTP-server ingesteld — campagnes worden alleen als voorbeeld verstuurd. Tracking &amp; statistieken werken wel.
+              <b className="text-slate-900">Simulation mode active.</b> No SMTP server is set up yet — campaigns are delivered as a preview only. Tracking &amp; analytics still work.
             </div>
             <button onClick={() => navigate("/integrations")}
               className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-full px-4 py-2 clara-trans">
-              Instellen
+              Set up
             </button>
           </motion.div>
         )}

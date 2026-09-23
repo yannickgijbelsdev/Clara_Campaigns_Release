@@ -5,9 +5,9 @@ import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Loader2, Save, Server, Send, Trash2, BookOpen } from "lucide-react";
 
 const SECURITY_OPTIONS = [
-  { value: "starttls", label: "STARTTLS (poort 587)" },
-  { value: "ssl", label: "SSL/TLS (poort 465)" },
-  { value: "none", label: "Geen (onversleuteld)" },
+  { value: "starttls", label: "STARTTLS (port 587)" },
+  { value: "ssl", label: "SSL/TLS (port 465)" },
+  { value: "none", label: "None (unencrypted)" },
 ];
 
 const EMPTY = { host: "", port: 587, security: "starttls", username: "", password: "", from_email: "", from_name: "", has_password: false, configured: false };
@@ -29,8 +29,8 @@ export default function Integrations() {
   const set = (k, v) => setCfg((c) => ({ ...c, [k]: v }));
 
   const save = async () => {
-    if (!cfg.host.trim() || !cfg.from_email.trim()) return toast.error("Host en afzender e-mailadres zijn verplicht.");
-    if (!cfg.has_password && !cfg.password.trim()) return toast.error("Een wachtwoord is verplicht.");
+    if (!cfg.host.trim() || !cfg.from_email.trim()) return toast.error("Host and sender email are required.");
+    if (!cfg.has_password && !cfg.password.trim()) return toast.error("A password is required.");
     setSaving(true);
     try {
       await api.put("/company/smtp", {
@@ -38,7 +38,7 @@ export default function Integrations() {
         username: cfg.username.trim(), password: cfg.password.trim() || null,
         from_email: cfg.from_email.trim(), from_name: cfg.from_name.trim(),
       });
-      toast.success("SMTP-instellingen opgeslagen");
+      toast.success("SMTP settings saved");
       await load();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
@@ -50,7 +50,7 @@ export default function Integrations() {
     setTesting(true);
     try {
       await api.post("/company/smtp/test");
-      toast.success("Verbinding gelukt! De SMTP-gegevens werken.");
+      toast.success("Connection successful! Your SMTP settings work.");
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     }
@@ -59,13 +59,13 @@ export default function Integrations() {
 
   const remove = async () => {
     await api.delete("/company/smtp");
-    toast.success("SMTP-configuratie verwijderd");
+    toast.success("SMTP configuration deleted");
     setCfg(EMPTY);
     load();
   };
 
   return (
-    <AppLayout title="E-mail / SMTP" subtitle="Verstuur nieuwsbrieven via je eigen SMTP-server">
+    <AppLayout title="Email / SMTP" subtitle="Send newsletters through your own SMTP server">
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" data-testid="smtp-config-card">
           <div className="flex items-center gap-4 p-6 border-b border-slate-100">
@@ -73,19 +73,19 @@ export default function Integrations() {
               <Server className="h-6 w-6 text-[#7380b6]" />
             </div>
             <div className="flex-1">
-              <h2 className="font-display font-semibold text-slate-900">SMTP-server</h2>
-              <p className="text-sm text-slate-500">Nieuwsbrieven worden verstuurd via de SMTP-server van deze werkruimte.</p>
+              <h2 className="font-display font-semibold text-slate-900">SMTP server</h2>
+              <p className="text-sm text-slate-500">Newsletters are sent through this workspace's SMTP server.</p>
             </div>
             {cfg.configured && (
               <span data-testid="smtp-status-badge" className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Geconfigureerd
+                <CheckCircle2 className="h-3.5 w-3.5" /> Configured
               </span>
             )}
           </div>
 
           <div className="p-6">
             {loading ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Laden…</div>
+              <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
             ) : (
               <>
                 {!cfg.configured && (
@@ -94,20 +94,20 @@ export default function Integrations() {
                       <AlertTriangle className="h-[18px] w-[18px]" />
                     </span>
                     <div className="text-sm text-slate-600 leading-snug">
-                      <b className="text-slate-900">Nog niet geconfigureerd.</b> Zolang er geen SMTP-server is ingesteld, worden campagnes in simulatiemodus verstuurd (tracking werkt, maar er gaat geen echte e-mail uit).
+                      <b className="text-slate-900">Not configured yet.</b> Until an SMTP server is set up, campaigns are sent in simulation mode (tracking works, but no real email goes out).
                     </div>
                   </div>
                 )}
 
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">SMTP-host</label>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">SMTP host</label>
                     <input data-testid="smtp-host" value={cfg.host} onChange={(e) => set("host", e.target.value)}
-                      placeholder="smtp.jouwdomein.com"
+                      placeholder="smtp.yourdomain.com"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Poort</label>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Port</label>
                     <input data-testid="smtp-port" type="number" value={cfg.port} onChange={(e) => set("port", e.target.value)}
                       placeholder="587"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
@@ -115,7 +115,7 @@ export default function Integrations() {
                 </div>
 
                 <div className="mt-3">
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Beveiliging</label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Security</label>
                   <select data-testid="smtp-security" value={cfg.security} onChange={(e) => set("security", e.target.value)}
                     className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6] bg-white">
                     {SECURITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -124,32 +124,32 @@ export default function Integrations() {
 
                 <div className="grid sm:grid-cols-2 gap-3 mt-3">
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Gebruikersnaam</label>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Username</label>
                     <input data-testid="smtp-username" value={cfg.username} onChange={(e) => set("username", e.target.value)}
-                      placeholder="gebruiker@jouwdomein.com" autoComplete="off"
+                      placeholder="user@yourdomain.com" autoComplete="off"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
                   </div>
                   <div>
                     <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                      Wachtwoord {cfg.has_password && <span className="text-emerald-600 font-normal">· opgeslagen — laat leeg om te behouden</span>}
+                      Password {cfg.has_password && <span className="text-emerald-600 font-normal">· saved — leave blank to keep it</span>}
                     </label>
                     <input data-testid="smtp-password" type="password" value={cfg.password} onChange={(e) => set("password", e.target.value)}
-                      placeholder={cfg.has_password ? "•••••••••• (ongewijzigd)" : "SMTP-wachtwoord"} autoComplete="new-password"
+                      placeholder={cfg.has_password ? "•••••••••• (unchanged)" : "SMTP password"} autoComplete="new-password"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
                   </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-3 mt-3">
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Afzender e-mailadres</label>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Sender email</label>
                     <input data-testid="smtp-from-email" type="email" value={cfg.from_email} onChange={(e) => set("from_email", e.target.value)}
-                      placeholder="nieuwsbrief@jouwdomein.com"
+                      placeholder="newsletter@yourdomain.com"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Afzendernaam</label>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Sender name</label>
                     <input data-testid="smtp-from-name" value={cfg.from_name} onChange={(e) => set("from_name", e.target.value)}
-                      placeholder="Jouw Organisatie"
+                      placeholder="Your Organization"
                       className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
                   </div>
                 </div>
@@ -157,16 +157,16 @@ export default function Integrations() {
                 <div className="flex flex-wrap items-center gap-3 mt-6">
                   <button data-testid="save-smtp-config" onClick={save} disabled={saving}
                     className="inline-flex items-center gap-2 bg-[#7380b6] hover:bg-[#616fa6] text-white text-sm font-medium px-4 py-2.5 rounded-full transition-colors disabled:opacity-60">
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Opslaan
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
                   </button>
                   <button data-testid="test-smtp-config" onClick={test} disabled={testing || !cfg.configured}
                     className="inline-flex items-center gap-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium px-4 py-2.5 rounded-full transition-colors disabled:opacity-50">
-                    {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Verbinding testen
+                    {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Test connection
                   </button>
                   {cfg.configured && (
                     <button data-testid="delete-smtp-config" onClick={remove}
                       className="inline-flex items-center gap-2 text-sm text-rose-600 hover:bg-rose-50 font-medium px-3 py-2.5 rounded-full transition-colors ml-auto">
-                      <Trash2 className="h-4 w-4" /> Verwijderen
+                      <Trash2 className="h-4 w-4" /> Delete
                     </button>
                   )}
                 </div>
@@ -177,15 +177,15 @@ export default function Integrations() {
 
         <div className="mt-5 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <h3 className="font-display font-semibold text-slate-900 mb-1 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-[#7380b6]" /> Zo stel je SMTP in
+            <BookOpen className="h-5 w-5 text-[#7380b6]" /> How to set up SMTP
           </h3>
-          <p className="text-sm text-slate-500 mb-5">Vraag deze gegevens op bij je e-mail- of hostingprovider.</p>
+          <p className="text-sm text-slate-500 mb-5">Get these details from your email or hosting provider.</p>
           <ol className="space-y-4">
             {[
-              { t: "Zoek de SMTP-gegevens", d: "Je e-mailprovider (bv. Microsoft 365, Google Workspace, je hostingpartij) geeft een SMTP-host, poort en beveiligingstype." },
-              { t: "Vul host en poort in", d: "Gebruik meestal poort 587 met STARTTLS, of poort 465 met SSL/TLS." },
-              { t: "Gebruikersnaam & wachtwoord", d: "Dit is meestal het volledige e-mailadres en het bijbehorende (app-)wachtwoord." },
-              { t: "Afzender instellen", d: "Vul het afzenderadres en de afzendernaam in die je ontvangers zien. Sla op en klik op ‘Verbinding testen’." },
+              { t: "Find your SMTP details", d: "Your email provider (e.g. Microsoft 365, Google Workspace, your hosting company) gives you an SMTP host, port and security type." },
+              { t: "Enter host and port", d: "Usually port 587 with STARTTLS, or port 465 with SSL/TLS." },
+              { t: "Username & password", d: "This is typically the full email address and its (app) password." },
+              { t: "Set the sender", d: "Enter the sender address and name your recipients will see. Save and click ‘Test connection’." },
             ].map((step, i) => (
               <li key={i} className="flex gap-3">
                 <div className="h-7 w-7 rounded-full bg-[#7380b6] text-white text-sm font-semibold flex items-center justify-center shrink-0">{i + 1}</div>
