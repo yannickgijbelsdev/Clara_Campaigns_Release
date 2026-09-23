@@ -74,7 +74,7 @@ export const BLOCK_DEFAULTS = {
   title: { text: "Welcome to our newsletter", level: "h1", align: "left", color: "#0F172A" },
   text: { text: "Write your message here. Share updates, offers or news with your readers.", align: "left", color: "#334155" },
   image: { src: "", alt: "", width: 552, align: "center", link: "" },
-  button: { text: "Read more", link: "https://", bg: "#E11D48", color: "#ffffff", radius: 8, align: "center" },
+  button: { text: "Read more", link: "https://", bg: "#7380b6", color: "#ffffff", radius: 8, align: "center" },
   divider: { color: "#E2E8F0" },
   spacer: { height: 24 },
 };

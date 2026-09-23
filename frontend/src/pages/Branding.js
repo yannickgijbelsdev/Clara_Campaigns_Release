@@ -83,7 +83,7 @@ export function BrandingForm({ onSaved, compact = false }) {
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Primary color</label>
           <div className="flex items-center gap-2">
-            <input type="color" data-testid="brand-primary-picker" value={b.brand_primary || "#E11D48"} onChange={(e) => setB({ ...b, brand_primary: e.target.value })}
+            <input type="color" data-testid="brand-primary-picker" value={b.brand_primary || "#7380b6"} onChange={(e) => setB({ ...b, brand_primary: e.target.value })}
               className="h-10 w-12 rounded-lg border border-slate-200 cursor-pointer bg-white p-1" />
             <input value={b.brand_primary || ""} onChange={(e) => setB({ ...b, brand_primary: e.target.value })} className={inp} />
           </div>

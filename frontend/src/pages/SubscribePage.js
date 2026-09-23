@@ -43,7 +43,7 @@ export default function SubscribePage() {
 
   if (!cfg) return <div className="min-h-screen bg-[#F5F6F8] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-rose-500" /></div>;
 
-  const primary = cfg.brand_primary || "#E11D48";
+  const primary = cfg.brand_primary || "#7380b6";
 
   return (
     <div className="min-h-screen bg-[#F5F6F8] flex items-center justify-center p-4">
@@ -66,24 +66,24 @@ export default function SubscribePage() {
               </div>
               <form onSubmit={submit} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <input data-testid="sub-first-name" required placeholder="First name" value={form.first_name}
+                  <input data-testid="sub-first-name" required placeholder={cfg.label_first_name || "First name"} value={form.first_name}
                     onChange={(e) => setForm({ ...form, first_name: e.target.value })}
                     className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-rose-500" />
-                  <input data-testid="sub-last-name" required placeholder="Last name" value={form.last_name}
+                  <input data-testid="sub-last-name" required placeholder={cfg.label_last_name || "Last name"} value={form.last_name}
                     onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                     className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-rose-500" />
                 </div>
-                <input data-testid="sub-email" required type="email" placeholder="Email address" value={form.email}
+                <input data-testid="sub-email" required type="email" placeholder={cfg.label_email || "Email address"} value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-rose-500" />
                 {cfg.collect_city && (
-                  <input data-testid="sub-city" placeholder="City / municipality" value={form.city}
+                  <input data-testid="sub-city" placeholder={cfg.label_city || "City / municipality"} value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
                     className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-rose-500" />
                 )}
                 {cfg.categories.length > 0 && (
                   <div className="pt-1">
-                    <div className="text-xs font-medium text-slate-600 mb-2">What would you like to receive?</div>
+                    <div className="text-xs font-medium text-slate-600 mb-2">{cfg.label_categories || "What would you like to receive?"}</div>
                     <div className="space-y-2">
                       {cfg.categories.map((c) => (
                         <label key={c.id} data-testid={`sub-cat-${c.id}`} className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
@@ -101,7 +101,7 @@ export default function SubscribePage() {
                 <button data-testid="sub-submit" type="submit" disabled={busy}
                   className="w-full flex items-center justify-center gap-2 text-white text-sm font-semibold rounded-full py-3 mt-2 disabled:opacity-60"
                   style={{ background: primary }}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Subscribe
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} {cfg.submit_text || "Subscribe"}
                 </button>
               </form>
             </>

@@ -119,7 +119,7 @@ def reset_email_html(name, reset_url):
         'Click the button below to set a new password. This link is valid for one hour '
         'and can be used once.</p></td></tr>'
         '<tr><td align="center" style="padding:8px 40px 8px">'
-        f'<a href="{reset_url}" style="display:inline-block;background:#E11D48;color:#ffffff;'
+        f'<a href="{reset_url}" style="display:inline-block;background:#7380b6;color:#ffffff;'
         'text-decoration:none;padding:14px 34px;border-radius:9999px;font-size:15px;'
         'font-weight:600">Reset your password</a></td></tr>'
         '<tr><td style="padding:24px 40px 0;color:#f43f5e;font-size:13px;line-height:1.5">'

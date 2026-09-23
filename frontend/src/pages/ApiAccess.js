@@ -31,7 +31,7 @@ function Card({ icon: Icon, tint, title, desc, children, testid }) {
 function CategoriesCard() {
   const [cats, setCats] = useState([]);
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#E11D48");
+  const [color, setColor] = useState("#7380b6");
   const confirm = useConfirm();
   const load = () => api.get("/categories").then((r) => setCats(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -91,6 +91,9 @@ export default function ApiAccess() {
       const { data } = await api.put("/subscribe/settings", {
         website: s.website, form_title: s.form_title, form_intro: s.form_intro,
         form_thankyou: s.form_thankyou, collect_city: s.collect_city, active: s.active,
+        label_first_name: s.label_first_name, label_last_name: s.label_last_name,
+        label_email: s.label_email, label_city: s.label_city,
+        label_categories: s.label_categories, submit_text: s.submit_text,
       });
       setS(data); toast.success("Saved");
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
@@ -107,7 +110,7 @@ export default function ApiAccess() {
 
   const notConfigured = !s.website;
   const logo = companyLogoUrl(branding);
-  const primary = branding?.brand_primary || "#E11D48";
+  const primary = branding?.brand_primary || "#7380b6";
 
   return (
     <AppLayout title="API & Subscribe form" subtitle="Let people subscribe from your website and manage what they sign up for">
@@ -172,6 +175,30 @@ export default function ApiAccess() {
                 <input type="checkbox" data-testid="form-active-toggle" checked={s.active} onChange={(e) => setS({ ...s, active: e.target.checked })} className="h-4 w-4 accent-rose-600" />
                 Form is active (accepting subscriptions)
               </label>
+
+              <div className="border-t border-slate-100 pt-4 mt-1">
+                <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3">Field labels</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[["label_first_name", "First name label"], ["label_last_name", "Last name label"],
+                    ["label_email", "Email label"], ["label_city", "City label"]].map(([k, ph]) => (
+                    <div key={k}>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{ph}</label>
+                      <input data-testid={`${k.replace(/_/g, "-")}-input`} value={s[k] || ""} onChange={(e) => setS({ ...s, [k]: e.target.value })} className={inp} />
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Categories heading</label>
+                    <input data-testid="label-categories-input" value={s.label_categories || ""} onChange={(e) => setS({ ...s, label_categories: e.target.value })} className={inp} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Subscribe button text</label>
+                    <input data-testid="submit-text-input" value={s.submit_text || ""} onChange={(e) => setS({ ...s, submit_text: e.target.value })} className={inp} />
+                  </div>
+                </div>
+              </div>
+
               <button data-testid="save-subscribe-settings-btn" onClick={save} disabled={busy}
                 className="inline-flex items-center gap-2 text-sm px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full disabled:opacity-60">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save form
@@ -229,25 +256,25 @@ Content-Type: application/json
                 <div className="space-y-3 text-left">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-500 mb-1">First name</label>
-                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">First name</div>
+                      <label className="block text-[11px] font-medium text-slate-500 mb-1">{s.label_first_name || "First name"}</label>
+                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">{s.label_first_name || "First name"}</div>
                     </div>
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-500 mb-1">Last name</label>
-                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">Last name</div>
+                      <label className="block text-[11px] font-medium text-slate-500 mb-1">{s.label_last_name || "Last name"}</label>
+                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">{s.label_last_name || "Last name"}</div>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Email address</label>
+                    <label className="block text-[11px] font-medium text-slate-500 mb-1">{s.label_email || "Email address"}</label>
                     <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">you@example.com</div>
                   </div>
                   {s.collect_city && (
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-500 mb-1">City / municipality</label>
-                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">City</div>
+                      <label className="block text-[11px] font-medium text-slate-500 mb-1">{s.label_city || "City / municipality"}</label>
+                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">{s.label_city || "City"}</div>
                     </div>
                   )}
-                  <div className="h-9 rounded-full text-white text-sm font-semibold flex items-center justify-center mt-2" style={{ background: primary }}>Subscribe</div>
+                  <div className="h-9 rounded-full text-white text-sm font-semibold flex items-center justify-center mt-2" style={{ background: primary }}>{s.submit_text || "Subscribe"}</div>
                 </div>
               </div>
             </motion.div>

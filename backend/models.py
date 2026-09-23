@@ -75,7 +75,7 @@ class ContactInput(BaseModel):
 class CategoryInput(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: Optional[str] = ""
-    color: Optional[str] = "#E11D48"
+    color: Optional[str] = "#7380b6"
 
 
 class SubscribeSettingsInput(BaseModel):
@@ -85,6 +85,12 @@ class SubscribeSettingsInput(BaseModel):
     form_thankyou: Optional[str] = None
     collect_city: Optional[bool] = None
     active: Optional[bool] = None
+    label_first_name: Optional[str] = None
+    label_last_name: Optional[str] = None
+    label_email: Optional[str] = None
+    label_city: Optional[str] = None
+    label_categories: Optional[str] = None
+    submit_text: Optional[str] = None
 
 
 class PublicSubscribeInput(BaseModel):

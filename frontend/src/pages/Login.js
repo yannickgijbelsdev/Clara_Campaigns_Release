@@ -104,7 +104,11 @@ export default function Login() {
       {/* Left: form */}
       <div className="w-full lg:w-[46%] xl:w-[38%] flex flex-col justify-center px-8 sm:px-16 py-10">
         <div className="w-full max-w-sm mx-auto clara-fade-up">
-          <Logo className="mb-12 scale-125 origin-left" />
+          <div className="flex items-center gap-2.5 mb-12">
+            <Logo className="scale-125 origin-left" />
+            <div className="h-6 w-px bg-slate-200" />
+            <span className="font-display font-semibold text-slate-900 text-lg">Clara Campaigns</span>
+          </div>
 
           {step === "credentials" ? (
             <>

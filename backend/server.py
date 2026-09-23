@@ -366,7 +366,7 @@ def _branding_out(company):
     return {
         "id": str(company["_id"]),
         "name": company.get("name"),
-        "brand_primary": company.get("brand_primary") or "#E11D48",
+        "brand_primary": company.get("brand_primary") or "#7380b6",
         "brand_accent": company.get("brand_accent") or "#0F172A",
         "website": company.get("website") or "",
         "logo_version": company.get("logo_version"),
@@ -436,7 +436,7 @@ async def get_company_logo(company_id: str):
 # ============ CATEGORIES ============
 def _category_out(c):
     return {"id": str(c["_id"]), "name": c.get("name"), "description": c.get("description", ""),
-            "color": c.get("color", "#E11D48"),
+            "color": c.get("color", "#7380b6"),
             "contacts": c.get("contacts", 0)}
 
 
@@ -475,12 +475,23 @@ async def delete_category(category_id: str, s=Depends(scope)):
 
 
 # ============ SUBSCRIBE / PUBLIC API ============
+def _form_labels(company):
+    return {
+        "label_first_name": company.get("label_first_name") or "First name",
+        "label_last_name": company.get("label_last_name") or "Last name",
+        "label_email": company.get("label_email") or "Email address",
+        "label_city": company.get("label_city") or "City / municipality",
+        "label_categories": company.get("label_categories") or "What would you like to receive?",
+        "submit_text": company.get("submit_text") or "Subscribe",
+    }
+
+
 def _subscribe_out(company):
     api_key = company.get("api_key")
     public_base = os.environ.get("PUBLIC_BASE_URL") or os.environ["BACKEND_URL"]
     public_url = f"{public_base}/subscribe/{api_key}" if api_key else None
     embed = (f'<a href="{public_url}" target="_blank" rel="noopener" '
-             f'style="display:inline-block;padding:12px 22px;background:{company.get("brand_primary") or "#E11D48"};'
+             f'style="display:inline-block;padding:12px 22px;background:{company.get("brand_primary") or "#7380b6"};'
              f'color:#fff;border-radius:9999px;font-family:sans-serif;text-decoration:none;font-weight:600;">'
              f'Subscribe to our newsletter</a>') if public_url else None
     iframe = f'<iframe src="{public_url}" width="100%" height="640" style="border:0;" title="Subscribe"></iframe>' if public_url else None
@@ -497,6 +508,7 @@ def _subscribe_out(company):
         "public_url": public_url,
         "embed_snippet": embed,
         "iframe_snippet": iframe,
+        **_form_labels(company),
     }
 
 
@@ -525,6 +537,10 @@ async def update_subscribe_settings(data: SubscribeSettingsInput, s=Depends(scop
         upd["collect_city"] = data.collect_city
     if data.active is not None:
         upd["subscribe_active"] = data.active
+    for f in ("label_first_name", "label_last_name", "label_email", "label_city", "label_categories", "submit_text"):
+        v = getattr(data, f)
+        if v is not None:
+            upd[f] = v
     if upd:
         await db.companies.update_one({"_id": s["company"]["_id"]}, {"$set": upd})
     company = await db.companies.find_one({"_id": s["company"]["_id"]})
@@ -553,7 +569,7 @@ async def public_form(api_key: str):
     return {
         "company_name": company.get("name"),
         "logo_url": company.get("logo_url"),
-        "brand_primary": company.get("brand_primary") or "#E11D48",
+        "brand_primary": company.get("brand_primary") or "#7380b6",
         "brand_accent": company.get("brand_accent") or "#0F172A",
         "website": company.get("website") or "",
         "form_title": company.get("form_title") or f"Subscribe to {company.get('name', 'our newsletter')}",
@@ -561,6 +577,7 @@ async def public_form(api_key: str):
         "form_thankyou": company.get("form_thankyou") or "Thanks for subscribing! Please check your inbox.",
         "collect_city": company.get("collect_city", True),
         "categories": [{"id": str(c["_id"]), "name": c.get("name"), "description": c.get("description", "")} for c in cats],
+        **_form_labels(company),
     }
 
 
@@ -608,7 +625,7 @@ def _plan_request_html(user_email, user_name, company_name, current, requested, 
         '<table role="presentation" width="520" cellpadding="0" cellspacing="0" '
         'style="background:#ffffff;border-radius:20px;overflow:hidden;max-width:520px">'
         '<tr><td style="padding:32px 40px 4px"><div style="font-size:22px;font-weight:700;color:#0f172a">'
-        'Plan change request</div><div style="font-size:14px;color:#e11d48;margin-top:2px">Clara Campaigns</div></td></tr>'
+        'Plan change request</div><div style="font-size:14px;color:#7380b6;margin-top:2px">Clara Campaigns</div></td></tr>'
         f'<tr><td style="padding:12px 40px"><table role="presentation" width="100%">{rows}</table>{note}</td></tr>'
         '<tr><td style="padding:16px 40px 32px;color:#6b7280;font-size:12px">'
         'A customer requested a plan change. For paid plans, contact them to discuss and send a quote.'

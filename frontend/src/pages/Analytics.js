@@ -27,7 +27,7 @@ export default function Analytics() {
 
   const t = data.totals;
   const chart = [
-    { name: "Sent", value: t.sent, color: "#E11D48" },
+    { name: "Sent", value: t.sent, color: "#7380b6" },
     { name: "Opened", value: t.opened, color: "#10B981" },
     { name: "Clicked", value: t.clicked, color: "#F59E0B" },
   ];

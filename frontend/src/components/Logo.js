@@ -1,9 +1,9 @@
 export function Logo({ className = "" }) {
   return (
     <img
-      src="/koodh-clara-logo.webp"
-      alt="koodh clara"
-      className={`h-7 w-auto select-none ${className}`}
+      src="/favicon-32.png"
+      alt="Clara"
+      className={`h-7 w-7 object-contain select-none ${className}`}
       draggable="false"
     />
   );

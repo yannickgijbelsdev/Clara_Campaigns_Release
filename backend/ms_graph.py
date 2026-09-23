@@ -137,7 +137,7 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
     prefs_url = company.get("subscribe_url") or (f"{public_base}/subscribe/{company.get('api_key')}" if company.get("api_key") else None)
     prefs_btn = (
         f'<a href="{prefs_url}" style="display:inline-block;margin:0 0 12px;padding:9px 20px;'
-        f'background:{company.get("brand_primary") or "#E11D48"};color:#ffffff;border-radius:9999px;'
+        f'background:{company.get("brand_primary") or "#7380b6"};color:#ffffff;border-radius:9999px;'
         f'text-decoration:none;font-size:13px;font-weight:600;">Manage your preferences</a><br/>'
         if prefs_url else "")
     footer = (
