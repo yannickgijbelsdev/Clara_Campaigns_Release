@@ -107,7 +107,7 @@ async def send_mail(token: str, sender: str, subject: str, html: str, to_email: 
         raise RuntimeError(f"Graph {r.status_code}: {r.text[:300]}")
 
 
-def personalize_html(html: str, track_id: str, backend_url: str, company: dict = None, public_base: str = None) -> str:
+def personalize_html(html: str, track_id: str, backend_url: str, company: dict = None, public_base: str = None, unsub_url: str = None) -> str:
     """Rewrite links for click tracking, inject open pixel and a branded footer."""
     def repl(m):
         quote_char = m.group(1)
@@ -129,7 +129,7 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
                     f'width="120" style="max-width:120px;height:auto;display:inline-block;border:0;margin:0 auto 10px;" />')
     website_link = (f'<a href="{website}" style="color:#94A3B8;text-decoration:none;">{html_lib.escape(website)}</a><br/>'
                     if website else "")
-    unsub_url = f"{backend_url}/api/unsubscribe/{track_id}"
+    unsub_url = unsub_url or f"{backend_url}/api/unsubscribe/{track_id}"
     footer = (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
         '<td align="center" style="padding:22px 24px 8px;font-family:\'Segoe UI\',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">'

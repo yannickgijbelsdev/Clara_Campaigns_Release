@@ -704,7 +704,8 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
             "clicked_links": [], "status": "sending", "simulated": not real, "created_at": now_iso(),
         }
         await db.deliveries.insert_one(delivery)
-        html = MS.personalize_html(campaign.get("html", ""), track_id, backend, company, public_base)
+        unsub_url = f"{backend}/api/unsubscribe/{A.make_unsub_token(company_id, str(ct['_id']))}"
+        html = MS.personalize_html(campaign.get("html", ""), track_id, backend, company, public_base, unsub_url)
         try:
             if real:
                 await MS.send_mail(token, sender, campaign.get("subject", ""), html, ct["email"], delivery["name"], attachments)
@@ -846,23 +847,41 @@ async def track_click(track_id: str, u: str = Query("")):
     return RedirectResponse(u or os.environ["FRONTEND_URL"])
 
 
-@api.get("/unsubscribe/{track_id}")
-async def unsubscribe(track_id: str):
-    d = await db.deliveries.find_one({"track_id": track_id})
-    company_name = "this sender"
-    already = False
-    if d:
-        contact = await db.contacts.find_one({"_id": oid(d["contact_id"])}) if d.get("contact_id") else None
-        comp = await db.companies.find_one({"_id": oid(d["company_id"])}) if d.get("company_id") else None
-        if comp:
-            company_name = comp.get("name") or company_name
-        if contact:
-            already = contact.get("status") == "unsubscribed"
-            if not already:
-                await db.contacts.update_one({"_id": contact["_id"]},
-                    {"$set": {"status": "unsubscribed", "unsubscribed_at": now_iso()}})
-        await db.deliveries.update_one({"track_id": track_id},
-            {"$set": {"unsubscribed": True, "unsubscribed_at": now_iso()}})
+@api.get("/unsubscribe/{token}")
+async def unsubscribe(token: str):
+    company_id, contact_id = A.verify_unsub_token(token)
+    contact = None
+    comp = None
+    if company_id and contact_id:
+        try:
+            contact = await db.contacts.find_one({"_id": oid(contact_id), "company_id": company_id})
+            comp = await db.companies.find_one({"_id": oid(company_id)})
+        except Exception:
+            contact = None
+    else:
+        # Backward compatibility: older emails used the raw delivery track_id
+        d = await db.deliveries.find_one({"track_id": token})
+        if d:
+            contact = await db.contacts.find_one({"_id": oid(d["contact_id"])}) if d.get("contact_id") else None
+            comp = await db.companies.find_one({"_id": oid(d["company_id"])}) if d.get("company_id") else None
+            await db.deliveries.update_one({"track_id": token},
+                {"$set": {"unsubscribed": True, "unsubscribed_at": now_iso()}})
+
+    if not contact:
+        page = """<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/><title>Invalid link</title></head>
+<body style="margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;">
+<div style="max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 10px 40px rgba(15,23,42,0.08);">
+<h1 style="font-size:20px;color:#0F172A;margin:0 0 8px;">This unsubscribe link is invalid</h1>
+<p style="font-size:14px;color:#64748B;line-height:1.6;margin:0;">The link may be incomplete or expired. Please use the unsubscribe link from a recent email.</p>
+</div></body></html>"""
+        return FastResponse(content=page, media_type="text/html", status_code=404)
+
+    company_name = (comp.get("name") if comp else None) or "this sender"
+    already = contact.get("status") == "unsubscribed"
+    if not already:
+        await db.contacts.update_one({"_id": contact["_id"]},
+            {"$set": {"status": "unsubscribed", "unsubscribed_at": now_iso()}})
     msg = ("You were already unsubscribed." if already
            else f"You've been unsubscribed from {html_lib.escape(company_name)}.")
     page = f"""<!DOCTYPE html><html><head><meta charset="utf-8"/>

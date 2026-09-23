@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 3 end-to-end verification of the new account/branding/onboarding/unsubscribe features + the responsive-header bug fix. Backend: added /app/backend/tests/test_iter3_features.py — 10/10 passed after one small assertion tweak (wrong-password 400, password change+restore, avatar upload+fetch, MFA backup-codes generation+status, MFA reset/start returns qr, branding GET/PUT persist, company logo upload+public GET, admin PATCH /admin/users/{id}/companies assign+revoke, contacts default status=subscribed, full unsubscribe flow: send in simulation → track_id → GET /unsubscribe/{id} → contact status=unsubscribed → second send recipients drops 2→1). Frontend: logged in as admin (yannick, MFA via mongo TOTP secret). Responsive header verified at 1920x800, 1280x800, 1024x800, 390x844 — NO horizontal body overflow at any size; 'Microsoft 365' label renders as single line at every breakpoint (heights 28/36 px, no wrap). Global search opens via data-testid='global-search-btn' and Ctrl+K; modal appears with correct data-testid. Avatar dropdown works: no top-nav 'Security' item exists, data-testid='user-menu-btn' opens menu with menu-account (→/settings) + logout-btn. Admin nav label renders exactly 'Administration'. Dashboard has no <h1> page title anymore; simulation banner (data-testid='simulation-banner') is the modernized soft card. Settings: all data-testids exist; wrong current password shows toast 'Your current password is incorrect.' (admin password NOT changed). MFA reset/start opens modal with data-testid='mfa-reset-qr' (confirm NOT executed). Branding page: all fields (name, primary picker, accent picker, website) + save-branding-btn present; edit+save+reload persists values (verified name='TEST_UI_Brand', website='https://uibrand.example'). Contacts page shows all three group tabs with counts (All 2 / Subscribed 2 / Unsubscribed 0). Admin Users tab exposes 40 assign-companies-<userId> buttons; clicking opens data-testid='assign-companies-modal' with save-assign-companies-btn. Non-admin onboard_test@clara.nl (after unsetting onboarded flag) sees data-testid='onboarding-modal' on dashboard, does NOT see nav-admin; Save & continue closes it and modal does not re-appear on reload.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/unsubscribe/{track_id}", "issue": "Returns 200 with 'You've been unsubscribed from this sender.' even for unknown/invalid track_ids (no DB record). Should return 404 or a distinct 'invalid link' page — currently indistinguishable from a real successful unsubscribe to a scraper/attacker probing IDs."},
+      {"endpoint": "POST /api/campaigns/{id}/send", "issue": "Every re-send deletes prior deliveries (db.deliveries.delete_many by campaign_id). That destroys historical open/click and prior unsubscribe track ids — an old email in a user's inbox becomes a dead unsubscribe link (endpoint then falls through to the generic message instead of marking the contact). Consider soft-versioning sends or keying unsubscribes by (campaign_id, contact_id)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header <xl breakpoint (390/1024/1280 tested)", "issues": ["Below 1280 the pill-nav second row exists as an xl:hidden overflow-x-auto row (rendered as chips), which is the intentional fix. Nice."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter3_features.py",
+    "/app/test_reports/pytest/pytest_iter3.xml"
+  ],
+  "action_items": [
+    "(low) /api/unsubscribe/{track_id}: return 404 (or a distinct HTML page) for unknown track_ids instead of the same success page.",
+    "(low) Preserve historical deliveries on resend or map unsubscribe links by (campaign_id, contact_id) so old email unsubscribe links keep working across resends.",
+    "(carried over) Redirect non-admins away from /admin route (currently API-gated but the shell still renders).",
+    "(carried over) Validate license `plan` against enum on PATCH /api/admin/users/{id}/license."
+  ],
+  "critical_code_review_comments": [
+    "AppLayout.js header responsive split (xl:flex inline nav + xl:hidden scrollable chip row) is a clean, cheap fix and eliminates the horizontal overflow at 1024/1280 that caused the original 'Microsoft 365' wrap. Whitespace-nowrap on both rows guards against future long labels.",
+    "GlobalSearch loads BOTH /campaigns and /contacts in full on every open — fine now but O(N) on the client; consider a server-side /search?q= endpoint once companies exceed a few hundred rows.",
+    "Settings CodesModal is gated behind window.confirm() when codes already exist; this makes it invisible to headless tests (Playwright auto-dismisses confirm dialogs). Consider replacing window.confirm with an in-app confirm modal for testability and consistency with the rest of the UI.",
+    "Branding preview <img data-testid='company-logo-preview'> only renders when has_logo is truthy — good, but the fallback state should also expose a data-testid (e.g., company-logo-empty) for tests.",
+    "server.py unsubscribe endpoint doesn't guard against unknown track_ids and doesn't rate-limit — a scraper can enumerate hex ids. Consider signed unsubscribe tokens (HMAC(contact_id+campaign_id)) instead of raw track_ids so old links stay valid across resends AND cannot be brute-forced."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter3_features.py (new — 10 tests)"
+  ],
+  "success_rate": {"backend": "10/10 (100%) new + prior 27/27 unaffected", "frontend": "100% of tested flows (responsive header × 4 sizes, global search, avatar menu, admin nav label, dashboard title removal, settings avatar/password/mfa, branding form persistence, contacts group tabs, admin assign-companies modal, non-admin onboarding modal)"},
+  "test_credentials": "Admin: yannick.gijbels@koodh.com / Koodh2026! (TOTP secret in mongo db.users.totp_secret). Non-admin: onboard_test@clara.nl / Onboard123! (TOTP secret IYUNR6JWDOD4VR2KLD73NWKCNGJ4TJ7Q).",
+  "seed_data_creation": "Backend tests create ephemeral test_iter3_* users, TEST_ prefixed companies, and delete them at test end. Non-admin `onboarded` flag was unset on onboard_test@clara.nl for the onboarding UI check — after test flow completes it is set back to true by the Save & continue action.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend URL from /app/frontend/.env. Admin MFA TOTP secret is stored per-run in mongo (rotates when admin does an MFA reset). To log in as admin programmatically: fetch db.users.find_one({email:'yannick.gijbels@koodh.com'}).totp_secret then pyotp.TOTP(secret).now(). Login button in the app is <button> with text 'Sign in' (not type=submit). OTP field is input[maxlength=6] placeholder='000000'; press 'Verify' button after filling. To retrigger onboarding modal for onboard_test@clara.nl, $unset the `onboarded` field in mongo before login. window.confirm() gates on Settings 'Regenerate backup codes' when codes already exist — Playwright auto-dismisses those, so use page.on('dialog', d=>d.accept()) or delete backup_codes from mongo first.",
+  "rca of the issue": "Responsive-header bug fix RCA: original layout used a single flex nav with the plan/lock chips + workspace-switcher + 5-item pill nav + search + avatar all on one row; between ~1024 and ~1280px the 'Microsoft 365' label ran out of room and either wrapped or pushed the row past viewport width. The fix in AppLayout.js splits the header into (a) primary row that only renders the inline nav at xl (>=1280) and (b) a horizontally scrollable chip row `xl:hidden` for smaller widths. Both rows use whitespace-nowrap. Verified at 1920/1280/1024/390 — header.scrollWidth == clientWidth == window.innerWidth at every size, and 'Microsoft 365' link height stays at 36 (inline) or 28 (chip), never doubles."
+}

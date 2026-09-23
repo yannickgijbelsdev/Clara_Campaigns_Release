@@ -75,6 +75,28 @@ def verify_totp(secret: str, code: str) -> bool:
     return pyotp.TOTP(secret).verify(code, valid_window=1)
 
 
+def make_unsub_token(company_id: str, contact_id: str) -> str:
+    import hmac, hashlib, base64
+    msg = f"{company_id}:{contact_id}"
+    sig = hmac.new(get_jwt_secret().encode(), msg.encode(), hashlib.sha256).hexdigest()[:16]
+    raw = f"{msg}:{sig}"
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+
+def verify_unsub_token(token: str):
+    import hmac, hashlib, base64
+    try:
+        pad = "=" * (-len(token) % 4)
+        raw = base64.urlsafe_b64decode(token + pad).decode()
+        company_id, contact_id, sig = raw.split(":")
+        expected = hmac.new(get_jwt_secret().encode(), f"{company_id}:{contact_id}".encode(), hashlib.sha256).hexdigest()[:16]
+        if hmac.compare_digest(sig, expected):
+            return company_id, contact_id
+    except Exception:
+        pass
+    return None, None
+
+
 def qr_data_url(uri: str) -> str:
     img = qrcode.make(uri)
     buf = io.BytesIO()

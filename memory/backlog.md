@@ -1,29 +1,30 @@
 # Clara Campaigns — Active Backlog (fork)
 
-## Batch A — in progress
-1. [DONE, unverified] Global search modal (Cmd+K) — campaigns + contacts, active workspace
-2. [DONE, unverified] Modernize the two amber banners (simulation + Azure not configured) to Clara style
-3. [TODO] Move "Security" tab out of main nav → into dropdown under avatar/name
-4. [TODO] Avatar upload (object storage) — storage.py done, endpoints pending
-5. [TODO] Change password (authenticated)
-6. [TODO] Remove Dashboard page title header ("Dashboard / Your newsletter workspace at a glance")
-7. [TODO] MFA backup codes generate/regenerate (auth helpers done, endpoints pending)
-8. [TODO] MFA reset / re-enroll (new secret + QR, confirm, regenerate backup codes)
-
-## Batch B — new
-9. Email footer "Send with Clara Campaigns" must link to https://campaigns.koodh.com
-10. Attach the Clara logo to the email (inline/attachment)
-11. Unsubscribe link for every recipient → track unsubscribe stats → remove from active sending list
-12. Automatic groups/segments: Subscribed vs Unsubscribed (auto)
-13. On login: activity digest of what happened while logged out (opens/clicks/unsubscribes/sends)
+## DONE & verified (iteration_3.json)
+- Global search spotlight modal (Cmd/Ctrl+K) — campaigns + contacts, active workspace
+- Modernized amber banners (simulation + Azure not configured)
+- Security moved into avatar dropdown; avatar upload; change password
+- MFA backup codes (generate/status) + MFA reset/re-enroll (QR confirm)
+- Dashboard page title header removed
+- Admin nav label '<' → 'Administration'
+- Responsive header fix (inline nav at xl, scroll chip-nav below xl) — verified 1920/1280/1024/390
+- Company Branding page (logo upload, primary/accent colors, website, name) — applied to newsletter footer
+- First-login onboarding modal for non-admin users (branding setup)
+- Admin can link users to companies (member_ids); membership-aware scope/list
+- Contacts auto-groups: Subscribed / Unsubscribed tabs + badge
+- Unsubscribe: signed HMAC token (resend-proof, non-enumerable); marks contact unsubscribed; excluded from sends; invalid token → 404
+- Email footer injected at send: company logo + website + "Sent with Clara Campaigns" (→ campaigns.koodh.com) + unsubscribe; logo attached to real Graph sends
+- Dashboard total_unsubscribed count
 
 ## Global settings
-- Centralize PUBLIC_BASE_URL = https://campaigns.koodh.com (used for email footer link, unsubscribe links, subscribe redirect, and other public settings)
+- PUBLIC_BASE_URL = https://campaigns.koodh.com (footer brand link)
 
-## Batch C — new (public subscription API + hosted form + categories)
+## TODO — next
+13. Login activity digest ("what happened while you were logged out": new opens/clicks/unsubscribes/sends since last login) — pop-up after login
+
+## Batch C — public subscription API + hosted form + categories (NOT STARTED)
 14. Public subscription API embeddable on external websites; base URL campaigns.koodh.com
-15. After connecting the API to a site → show a "connected" checkmark in the dashboard
-16. Hosted subscribe form at campaigns.koodh.com: collects last name, first name, email, city/municipality
-17. Form shows clearly what they are subscribing to; checkboxes to pick which categories they want mail about
-18. Dashboard: create/manage Categories; link categories when sending a newsletter (target by category)
-
+15. After connecting the API to a site → "connected" checkmark in dashboard
+16. Hosted subscribe form at campaigns.koodh.com: last name, first name, email, city/municipality
+17. Form shows what they subscribe to; checkboxes to pick categories
+18. Dashboard: create/manage Categories; target categories when sending a newsletter

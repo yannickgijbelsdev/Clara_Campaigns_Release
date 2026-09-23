@@ -42,3 +42,19 @@ Platform (Dutch) om nieuwsbrieven te versturen vanuit Office365-mailboxen (Micro
 
 ## Test Credentials
 See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
+
+## Iteration 3 (2026-06) — account, branding, membership, unsubscribe
+- Global search spotlight (Cmd/Ctrl+K) across campaigns + contacts.
+- Account & Security (moved under avatar dropdown): profile photo upload (object storage), change password, MFA backup codes (generate/status), MFA reset/re-enroll (QR confirm).
+- Company Branding page (logo, primary/accent colors, website, name) — auto-applied to newsletter footer; logo attached to real Graph sends. PUBLIC_BASE_URL=campaigns.koodh.com for the "Sent with Clara Campaigns" footer link.
+- First-login onboarding modal (non-admin) to set up company branding.
+- Multi-user companies: company.member_ids[]; membership-aware scope() and /companies; Admin can link users to companies via PATCH /api/admin/users/{id}/companies.
+- Unsubscribe: signed HMAC token (resend-proof, non-enumerable) injected in every email footer; GET /api/unsubscribe/{token} marks contact status=unsubscribed; unsubscribed excluded from sends; invalid token → 404 page.
+- Contacts auto-groups: Subscribed / Unsubscribed tabs; dashboard total_unsubscribed.
+- Responsive header fix (inline nav at xl; scrollable chip-nav below xl). Admin nav label → 'Administration'. Dashboard page title removed.
+- Verified: iteration_3.json — frontend 100% of tested flows; backend 10/10 new (+prior unaffected).
+
+## Backlog / Remaining (updated)
+- P1: Login activity digest (what happened while logged out).
+- P1: Batch C — public subscription API + hosted subscribe form (campaigns.koodh.com) + categories/segments; "API connected" checkmark; target categories when sending.
+- P0 (ops): Provide Azure keys to leave SIMULATION mode.
