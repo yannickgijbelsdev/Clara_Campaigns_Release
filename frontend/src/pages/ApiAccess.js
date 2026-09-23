@@ -79,14 +79,15 @@ export default function ApiAccess() {
   const [s, setS] = useState(null);
   const [branding, setBranding] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const confirm = useConfirm();
 
-  const load = () => api.get("/subscribe/settings").then((r) => setS(r.data)).catch(() => {});
+  const load = () => api.get("/subscribe/settings").then((r) => { setS(r.data); setFailed(false); }).catch(() => setFailed(true));
   useEffect(() => {
     load();
     api.get("/company/branding").then((r) => setBranding(r.data)).catch(() => {});
   }, []);
-  const showLoader = useLoadingGate(!!s);
+  const showLoader = useLoadingGate(!!s || failed);
 
   const save = async () => {
     setBusy(true);
@@ -110,6 +111,20 @@ export default function ApiAccess() {
   };
 
   if (showLoader) return <AppLayout title="API & Subscribe form"><BearLoader label="Loading API access…" /></AppLayout>;
+
+  if (!s) return (
+    <AppLayout title="API & Subscribe form">
+      <div data-testid="api-load-error" className="max-w-md mx-auto text-center bg-white rounded-3xl clara-soft p-10 mt-6">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 mb-4"><AlertTriangle className="h-6 w-6" /></span>
+        <h2 className="font-display font-semibold text-slate-900 text-lg mb-1">Couldn't load API access</h2>
+        <p className="text-sm text-slate-500 mb-6">Something went wrong loading this page. Please try again.</p>
+        <button data-testid="api-load-retry" onClick={() => { setFailed(false); load(); }}
+          className="inline-flex items-center gap-2 bg-[#7380b6] hover:bg-[#616fa6] text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors">
+          <RefreshCw className="h-4 w-4" /> Retry
+        </button>
+      </div>
+    </AppLayout>
+  );
 
   const notConfigured = !s.website;
   const logo = companyLogoUrl(branding);

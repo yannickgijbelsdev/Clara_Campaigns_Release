@@ -25,7 +25,20 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (res) => { _stop(); return res; },
-  (error) => { _stop(); return Promise.reject(error); }
+  (error) => {
+    _stop();
+    const status = error.response?.status;
+    const url = error.config?.url || "";
+    const isAuthCall = url.includes("/auth/");
+    if (status === 401 && !isAuthCall) {
+      localStorage.removeItem("clara_token");
+      localStorage.removeItem("clara_company");
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
+    }
+    return Promise.reject(error);
+  }
 );
 
 export function formatApiErrorDetail(detail) {

@@ -17,16 +17,26 @@ export default function Analytics() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
 
-  const load = () => api.get(`/campaigns/${id}/stats`).then((r) => setData(r.data)).catch(() => {});
+  const load = () => api.get(`/campaigns/${id}/stats`).then((r) => { setData(r.data); setFailed(false); }).catch(() => setFailed(true));
   useEffect(() => {
     load();
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [id]);
-  const showLoader = useLoadingGate(!!data);
+  const showLoader = useLoadingGate(!!data || failed);
 
   if (showLoader) return <AppLayout title="Analytics"><BearLoader label="Loading analytics…" /></AppLayout>;
+  if (!data) return (
+    <AppLayout title="Analytics">
+      <div data-testid="analytics-load-error" className="max-w-md mx-auto text-center bg-white rounded-3xl clara-soft p-10 mt-6">
+        <p className="text-sm text-slate-500 mb-4">Couldn't load analytics. Please try again.</p>
+        <button onClick={() => { setFailed(false); load(); }}
+          className="inline-flex items-center gap-2 bg-[#7380b6] hover:bg-[#616fa6] text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors">Retry</button>
+      </div>
+    </AppLayout>
+  );
 
   const t = data.totals;
   const chart = [

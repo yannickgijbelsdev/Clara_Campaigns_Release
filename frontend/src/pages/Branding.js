@@ -19,10 +19,11 @@ export function BrandingForm({ onSaved, compact = false }) {
   const [b, setB] = useState(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  const load = () => api.get("/company/branding").then((r) => setB(r.data)).catch(() => {});
+  const load = () => api.get("/company/branding").then((r) => { setB(r.data); setFailed(false); }).catch(() => setFailed(true));
   useEffect(() => { load(); }, []);
-  const showLoader = useLoadingGate(!!b, compact ? 0 : 4000);
+  const showLoader = useLoadingGate(!!b || failed, compact ? 0 : 4000);
 
   const save = async () => {
     setBusy(true);
@@ -58,6 +59,13 @@ export function BrandingForm({ onSaved, compact = false }) {
   };
 
   if (showLoader) return <BearLoader label="Loading your branding…" />;
+  if (!b) return (
+    <div data-testid="branding-load-error" className="text-center bg-white rounded-3xl clara-soft p-10">
+      <p className="text-sm text-slate-500 mb-4">Couldn't load your branding. Please try again.</p>
+      <button onClick={() => { setFailed(false); load(); }}
+        className="inline-flex items-center gap-2 bg-[#7380b6] hover:bg-[#616fa6] text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors">Retry</button>
+    </div>
+  );
   const logo = companyLogoUrl(b);
 
   return (
