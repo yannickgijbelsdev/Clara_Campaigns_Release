@@ -6,9 +6,10 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import GlobalSearch from "@/components/GlobalSearch";
 import Onboarding from "@/components/Onboarding";
+import { startTour } from "@/lib/useTour";
 import { toast } from "sonner";
 import {
-  LogOut, AlertCircle, ChevronDown, Plus, Check, X, Globe, Gem, Lock, Search, ShieldCheck,
+  LogOut, AlertCircle, ChevronDown, Plus, Check, X, Globe, Gem, Lock, Search, ShieldCheck, HelpCircle,
 } from "lucide-react";
 
 export const avatarUrl = (u) =>
@@ -187,6 +188,18 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   }, []);
 
   useEffect(() => {
+    if (!user) return;
+    const onboardingOpen = user.role !== "admin" && user.onboarded !== true;
+    if (onboardingOpen) return;
+    if (localStorage.getItem("clara_tour_seen")) return;
+    const t = setTimeout(() => {
+      const started = startTour(location.pathname);
+      if (started) localStorage.setItem("clara_tour_seen", "1");
+    }, 900);
+    return () => clearTimeout(t);
+  }, [user, location.pathname]);
+
+  useEffect(() => {
     api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
   }, []);
 
@@ -244,6 +257,10 @@ export default function AppLayout({ children, title, subtitle, actions }) {
             <button data-testid="global-search-btn" onClick={() => setSearchOpen(true)} title="Search (⌘K)"
               className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 clara-trans">
               <Search className="h-[18px] w-[18px]" />
+            </button>
+            <button data-testid="help-tour-btn" onClick={() => { if (!startTour(location.pathname)) toast.info("No tour for this page yet."); }} title="Help & tour"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-rose-50 hover:text-rose-600 clara-trans">
+              <HelpCircle className="h-[19px] w-[19px]" />
             </button>
             <div className="pl-3 border-l border-slate-200/60">
               <UserMenu />
