@@ -109,6 +109,11 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 ## Changelog — 2026-06 (Iteration 14) — Zachtere blauwe nav-vinkjes
 - De integratie-vinkjes in de top-nav (desktop + mobiel) zijn nu een klein, subtiel blauw vinkje (#7380b6 @ 70%) ZONDER gevulde achtergrondcirkel, i.p.v. het felle groene badge-bolletje. Op de actieve (donkere) desktop-pill wordt het vinkje wit/80 zodat het leesbaar blijft. Alleen AppLayout.js gewijzigd; data-testids ongewijzigd (nav-check-*).
 
+## Changelog — 2026-06 (Iteration 15) — Login redesign (vdc-stijl)
+- Login volledig omgebouwd naar de vdc.koodh.com/login-stijl: één gecentreerde witte kaart (rounded-[28px], zachte schaduw, subtiele top-gradient) midden op de pagina, met de bijgeleverde Koodh-beren pixelart als paginavullende achtergrond (/clara-bear-bg.png in public/).
+- Header-lockup (logo + divider + "Clara Campaigns") en "Welcome back" + subtitel zijn gecentreerd; inputs rounded-xl op bg-slate-50; Sign in-knop in sitekleur #7380b6 (hover #616fa6). Alle accenten/links/focus-rings nu #7380b6 i.p.v. rose.
+- Zwevende feature-bubbels en split-layout verwijderd. Login/register/MFA/forgot-flows en alle data-testids ongewijzigd. Alleen Login.js gewijzigd + achtergrond-asset toegevoegd. Geverifieerd via screenshot (desktop).
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.
