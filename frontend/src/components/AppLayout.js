@@ -113,6 +113,10 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   const [mailbox, setMailbox] = useState(null);
 
   useEffect(() => {
+    document.title = title ? `Clara Campaigns | ${title}` : "Clara Campaigns";
+  }, [title]);
+
+  useEffect(() => {
     api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
   }, []);
 

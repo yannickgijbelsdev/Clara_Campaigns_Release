@@ -73,3 +73,8 @@ class CompanyInput(BaseModel):
 
 class SendInput(BaseModel):
     contact_ids: Optional[List[str]] = None  # None = all contacts
+
+
+class ScheduleInput(BaseModel):
+    scheduled_at: str
+    contact_ids: Optional[List[str]] = None

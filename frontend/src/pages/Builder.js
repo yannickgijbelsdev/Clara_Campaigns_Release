@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { generateHtml, BLOCK_DEFAULTS, renderBlock } from "@/lib/emailHtml";
+import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { toast } from "sonner";
 import {
   Type, AlignLeft, Image as ImageIcon, MousePointer, Minus, Space, Images,
@@ -35,6 +36,7 @@ export default function Builder() {
   const [showSend, setShowSend] = useState(false);
   const [saving, setSaving] = useState(false);
   const [campaignId, setCampaignId] = useState(isNew ? null : id);
+  const [createProgress, setCreateProgress] = useState(false);
 
   useEffect(() => {
     if (!isNew) {
@@ -91,6 +93,12 @@ export default function Builder() {
 
   const sel = blocks.find((b) => b.id === selected);
 
+  const saveManual = async () => {
+    const wasNew = !campaignId;
+    const ok = await save();
+    if (ok && wasNew) setCreateProgress(true);
+  };
+
   return (
     <AppLayout title={isNew ? "New newsletter" : "Edit newsletter"}>
       {/* toolbar */}
@@ -111,7 +119,7 @@ export default function Builder() {
         <button data-testid="preview-btn" onClick={() => setShowPreview(true)}
           className="inline-flex items-center gap-1.5 text-sm px-3 py-2 border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
           <Eye className="h-4 w-4" /> Preview</button>
-        <button data-testid="save-btn" onClick={save} disabled={saving}
+        <button data-testid="save-btn" onClick={saveManual} disabled={saving}
           className="inline-flex items-center gap-1.5 text-sm px-3 py-2 border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save</button>
         <button data-testid="send-btn" onClick={async () => { if (await save()) setShowSend(true); }}
@@ -189,6 +197,14 @@ export default function Builder() {
 
       {showPreview && <PreviewModal html={html} onClose={() => setShowPreview(false)} />}
       {showSend && campaignId && <SendModal campaignId={campaignId} onClose={() => setShowSend(false)} onSent={() => navigate(`/campaigns/${campaignId}/analytics`)} />}
+      <ProgressOverlay
+        open={createProgress}
+        title="Newsletter created"
+        subtitle="Saving your work…"
+        steps={["Saving your newsletter…", "Rendering the email layout…", "Ready to send!"]}
+        stepMs={700}
+        onComplete={() => setCreateProgress(false)}
+      />
     </AppLayout>
   );
 }
@@ -287,6 +303,9 @@ function SendModal({ campaignId, onClose, onSent }) {
   const [sending, setSending] = useState(false);
   const [mailbox, setMailbox] = useState(null);
   const [quota, setQuota] = useState(null);
+  const [when, setWhen] = useState("now"); // now | schedule
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [progress, setProgress] = useState(false);
 
   useEffect(() => {
     api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
@@ -298,9 +317,18 @@ function SendModal({ campaignId, onClose, onSent }) {
     setSending(true);
     const ids = all ? null : Object.keys(selected).filter((k) => selected[k]);
     try {
+      if (when === "schedule") {
+        if (!scheduleAt) { toast.error("Please pick a date and time"); setSending(false); return; }
+        const iso = new Date(scheduleAt).toISOString();
+        await api.post(`/campaigns/${campaignId}/schedule`, { contact_ids: ids, scheduled_at: iso });
+        toast.success(`Campaign scheduled for ${new Date(scheduleAt).toLocaleString()}`);
+        onSent();
+        return;
+      }
       const { data } = await api.post(`/campaigns/${campaignId}/send`, { contact_ids: ids });
-      toast.success(`Campaign sending to ${data.recipients} recipient(s)${data.mode === "simulation" ? " (simulation)" : " via Office 365"}`);
-      onSent();
+      setProgress(true);
+      const mode = data.mode;
+      setTimeout(() => toast.success(`Sent to ${data.recipients} recipient(s)${mode === "simulation" ? " (simulation)" : " via Office 365"}`), 100);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
       setSending(false);
@@ -349,15 +377,39 @@ function SendModal({ campaignId, onClose, onSent }) {
               ))}
             </div>
           )}
+
+          <div className="mt-4">
+            <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">When</div>
+            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit mb-3">
+              <button data-testid="send-when-now" onClick={() => setWhen("now")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${when === "now" ? "bg-white shadow-sm text-rose-600" : "text-slate-600"}`}>Send now</button>
+              <button data-testid="send-when-schedule" onClick={() => setWhen("schedule")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${when === "schedule" ? "bg-white shadow-sm text-rose-600" : "text-slate-600"}`}>Schedule</button>
+            </div>
+            {when === "schedule" && (
+              <input data-testid="schedule-datetime" type="datetime-local" value={scheduleAt}
+                min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                onChange={(e) => setScheduleAt(e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none" />
+            )}
+          </div>
         </div>
         <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
           <button data-testid="confirm-send-btn" onClick={doSend} disabled={sending || count === 0}
             className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center gap-2 disabled:opacity-50">
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send to {count}
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {when === "schedule" ? "Schedule" : `Send to ${count}`}
           </button>
         </div>
       </div>
+      <ProgressOverlay
+        open={progress}
+        title="Sending your campaign"
+        subtitle="Delivering to your recipients…"
+        steps={["Preparing your newsletter…", "Connecting to Office 365…", "Queuing recipients…", "Tracking enabled — all set!"]}
+        onComplete={onSent}
+      />
     </div>
   );
 }

@@ -23,7 +23,7 @@ import auth as A
 import ms_graph as MS
 from models import (
     RegisterInput, LoginInput, MfaVerifyInput, ContactInput,
-    CampaignInput, SendInput, CompanyInput, now_iso,
+    CampaignInput, SendInput, ScheduleInput, CompanyInput, now_iso,
 )
 
 app = FastAPI(title="Clara Campaigns API")
@@ -425,6 +425,25 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sent", "sent_at": now_iso()}})
 
 
+async def _start_send(campaign, company_id, contact_ids, user):
+    q = {"company_id": company_id}
+    if contact_ids:
+        q["_id"] = {"$in": [oid(c) for c in contact_ids]}
+    contacts = await db.contacts.find(q).to_list(10000)
+    if not contacts:
+        return {"error": "No recipients selected"}
+    token = await MS.get_access_token(user["id"])
+    real = bool(token)
+    row = await db.mailboxes.find_one({"user_id": user["id"]})
+    sender = row.get("email") if row else user["email"]
+    await db.deliveries.delete_many({"campaign_id": str(campaign["_id"])})
+    await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sending"}})
+    await db.send_events.insert_one({"user_id": user["id"], "company_id": company_id,
+                                     "campaign_id": str(campaign["_id"]), "ts": now_iso()})
+    asyncio.create_task(_run_send(campaign, contacts, user["id"], company_id, real, token, sender))
+    return {"ok": True, "recipients": len(contacts), "mode": "office365" if real else "simulation"}
+
+
 @api.post("/campaigns/{campaign_id}/send")
 async def send_campaign(campaign_id: str, data: SendInput, s=Depends(scope)):
     user = s["user"]
@@ -444,24 +463,36 @@ async def send_campaign(campaign_id: str, data: SendInput, s=Depends(scope)):
     if not campaign.get("html"):
         raise HTTPException(status_code=400, detail="Campaign has no content yet")
 
-    q = {"company_id": s["company_id"]}
-    if data.contact_ids:
-        q["_id"] = {"$in": [oid(c) for c in data.contact_ids]}
-    contacts = await db.contacts.find(q).to_list(10000)
-    if not contacts:
-        raise HTTPException(status_code=400, detail="No recipients selected")
+    res = await _start_send(campaign, s["company_id"], data.contact_ids, user)
+    if res.get("error"):
+        raise HTTPException(status_code=400, detail=res["error"])
+    return res
 
-    token = await MS.get_access_token(user["id"])
-    real = bool(token)
-    row = await db.mailboxes.find_one({"user_id": user["id"]})
-    sender = row.get("email") if row else user["email"]
 
-    await db.deliveries.delete_many({"campaign_id": campaign_id})
-    await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sending"}})
-    await db.send_events.insert_one({"user_id": user["id"], "company_id": s["company_id"],
-                                     "campaign_id": campaign_id, "ts": now_iso()})
-    asyncio.create_task(_run_send(campaign, contacts, user["id"], s["company_id"], real, token, sender))
-    return {"ok": True, "recipients": len(contacts), "mode": "office365" if real else "simulation"}
+@api.post("/campaigns/{campaign_id}/schedule")
+async def schedule_campaign(campaign_id: str, data: ScheduleInput, s=Depends(scope)):
+    user = s["user"]
+    full = await db.users.find_one({"_id": oid(user["id"])})
+    lic = full.get("license", {})
+    if user["role"] != "admin" and not lic.get("active"):
+        raise HTTPException(status_code=403, detail="No active license. Please contact your administrator.")
+    campaign = await db.campaigns.find_one({"_id": oid(campaign_id), "company_id": s["company_id"]})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if not campaign.get("html"):
+        raise HTTPException(status_code=400, detail="Campaign has no content yet")
+    await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {
+        "status": "scheduled", "scheduled_at": data.scheduled_at,
+        "scheduled_contacts": data.contact_ids}})
+    return {"ok": True, "scheduled_at": data.scheduled_at}
+
+
+@api.post("/campaigns/{campaign_id}/unschedule")
+async def unschedule_campaign(campaign_id: str, s=Depends(scope)):
+    await db.campaigns.update_one(
+        {"_id": oid(campaign_id), "company_id": s["company_id"]},
+        {"$set": {"status": "draft"}, "$unset": {"scheduled_at": "", "scheduled_contacts": ""}})
+    return {"ok": True}
 
 
 @api.get("/quota")
@@ -582,6 +613,35 @@ async def _seed_admin(email_env, pw_env):
             "license": {"plan": "enterprise", "active": True}}})
 
 
+async def _scheduler_loop():
+    while True:
+        try:
+            now = now_iso()
+            due = await db.campaigns.find({"status": "scheduled", "scheduled_at": {"$lte": now}}).to_list(50)
+            for camp in due:
+                uid = camp.get("user_id")
+                owner = await db.users.find_one({"_id": oid(uid)}) if uid else None
+                if not owner:
+                    await db.campaigns.update_one({"_id": camp["_id"]}, {"$set": {"status": "failed"}})
+                    continue
+                udict = {"id": str(owner["_id"]), "role": owner.get("role", "user"),
+                         "email": owner["email"], "name": owner.get("name")}
+                lic = owner.get("license", {})
+                if udict["role"] != "admin" and not lic.get("active"):
+                    await db.campaigns.update_one({"_id": camp["_id"]}, {"$set": {"status": "failed"}})
+                    continue
+                q_info = await send_quota(udict)
+                if not q_info["unlimited"] and q_info["remaining"] <= 0:
+                    await db.campaigns.update_one({"_id": camp["_id"]}, {"$set": {"status": "failed"}})
+                    continue
+                res = await _start_send(camp, camp.get("company_id"), camp.get("scheduled_contacts"), udict)
+                if res.get("error"):
+                    await db.campaigns.update_one({"_id": camp["_id"]}, {"$set": {"status": "failed"}})
+        except Exception as exc:
+            logger.error(f"scheduler error: {exc}")
+        await asyncio.sleep(30)
+
+
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
@@ -592,6 +652,7 @@ async def startup():
     await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
     await _seed_admin("ADMIN_EMAIL", "ADMIN_PASSWORD")
     await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD")
+    asyncio.create_task(_scheduler_loop())
     logger.info("Clara Campaigns backend started")
 
 

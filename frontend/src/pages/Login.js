@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { Logo } from "@/components/Logo";
+import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { ShieldCheck, Loader2, ArrowLeft, LayoutTemplate, Send, Upload, MousePointerClick, Lock, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,6 +24,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "" });
   const [mfa, setMfa] = useState({ token: "", code: "", setup: false, qr: "", secret: "" });
+  const [welcome, setWelcome] = useState(false);
+
+  useEffect(() => {
+    document.title = step === "mfa" ? "Clara Campaigns | Verification" : "Clara Campaigns | Sign in";
+  }, [step]);
 
   const submitCredentials = async (e) => {
     e.preventDefault();
@@ -56,9 +62,8 @@ export default function Login() {
     setLoading(true);
     try {
       const { data } = await api.post("/auth/mfa/verify", { mfa_token: mfa.token, code: mfa.code });
-      login(data.access_token, data.user);
-      toast.success("Welcome back!");
-      navigate("/dashboard");
+      await login(data.access_token, data.user);
+      setWelcome(true);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     } finally {
@@ -68,6 +73,18 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex bg-white">
+      <ProgressOverlay
+        open={welcome}
+        title="Welcome to Clara"
+        subtitle="Setting things up for you…"
+        steps={[
+          "Logging in to Clara…",
+          "Making a secure connection to the Clara Datacenter…",
+          "Connecting to the Clara services…",
+          "Preparing your workspace to show all the data…",
+        ]}
+        onComplete={() => navigate("/dashboard")}
+      />
       {/* Left: form */}
       <div className="w-full lg:w-[46%] xl:w-[38%] flex flex-col justify-center px-8 sm:px-16 py-10">
         <div className="w-full max-w-sm mx-auto clara-fade-up">
