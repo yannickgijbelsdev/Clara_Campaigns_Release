@@ -348,6 +348,31 @@ async def delete_contact(contact_id: str, s=Depends(scope)):
     return {"ok": True}
 
 
+@api.delete("/contacts")
+async def delete_all_contacts(s=Depends(scope)):
+    r = await db.contacts.delete_many({"company_id": s["company_id"]})
+    return {"deleted": r.deleted_count}
+
+
+@api.get("/contacts/{contact_id}/history")
+async def contact_history(contact_id: str, s=Depends(scope)):
+    ds = await db.deliveries.find({"contact_id": contact_id, "company_id": s["company_id"]}).to_list(1000)
+    out = []
+    for d in ds:
+        camp = None
+        if d.get("campaign_id"):
+            camp = await db.campaigns.find_one({"_id": oid(d["campaign_id"])})
+        out.append({
+            "campaign": camp.get("name") if camp else "—",
+            "subject": camp.get("subject") if camp else "",
+            "status": d.get("status"), "opened": d.get("opened"), "clicked": d.get("clicked"),
+            "open_count": d.get("open_count", 0), "click_count": d.get("click_count", 0),
+            "sent_at": d.get("sent_at") or d.get("created_at"),
+        })
+    out.sort(key=lambda x: x["sent_at"] or "", reverse=True)
+    return out
+
+
 @api.post("/contacts/import")
 async def import_contacts(file: UploadFile = File(...), s=Depends(scope)):
     content = (await file.read()).decode("utf-8-sig", errors="ignore")

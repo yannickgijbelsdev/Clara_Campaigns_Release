@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { toast } from "sonner";
-import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet } from "lucide-react";
+import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History } from "lucide-react";
 
 export default function Contacts() {
   const [contacts, setContacts] = useState([]);
@@ -11,6 +11,7 @@ export default function Contacts() {
   const [showImport, setShowImport] = useState(false);
   const [form, setForm] = useState({ email: "", first_name: "", last_name: "", company: "", tags: "" });
   const fileRef = useRef();
+  const [historyView, setHistoryView] = useState(null); // { contact, items }
 
   const load = () => api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -49,15 +50,57 @@ export default function Contacts() {
     e.target.value = "";
   };
 
+  const exportCsv = () => {
+    if (!contacts.length) return toast.error("No contacts to export");
+    const header = ["email", "first_name", "last_name", "company", "tags"];
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [header, ...contacts.map((c) => [c.email, c.first_name, c.last_name, c.company, (c.tags || []).join("|")])];
+    const csv = rows.map((r) => r.map(esc).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "contacts.csv"; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${contacts.length} contacts`);
+  };
+
+  const deleteAll = async () => {
+    if (!contacts.length) return;
+    if (!window.confirm(`Delete ALL ${contacts.length} contacts? This cannot be undone.`)) return;
+    try {
+      const { data } = await api.delete("/contacts");
+      toast.success(`Deleted ${data.deleted} contacts`);
+      load();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
+  const openHistory = async (c) => {
+    try {
+      const { data } = await api.get(`/contacts/${c.id}/history`);
+      setHistoryView({ contact: c, items: data });
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
   const filtered = contacts.filter((c) =>
     [c.email, c.first_name, c.last_name, c.company].join(" ").toLowerCase().includes(q.toLowerCase())
   );
 
   const actions = (
     <div className="flex gap-2">
+      <button data-testid="export-csv-btn" onClick={exportCsv}
+        className="inline-flex items-center gap-2 text-sm px-4 py-2 border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
+        <Download className="h-4 w-4" /> Export
+      </button>
       <button data-testid="import-csv-btn" onClick={() => setShowImport(true)}
         className="inline-flex items-center gap-2 text-sm px-4 py-2 border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
         <Upload className="h-4 w-4" /> Import CSV
+      </button>
+      <button data-testid="delete-all-btn" onClick={deleteAll}
+        className="inline-flex items-center gap-2 text-sm px-4 py-2 border border-rose-200 text-rose-600 rounded-full hover:bg-rose-50 transition-colors">
+        <Trash2 className="h-4 w-4" /> Delete all
       </button>
       <button data-testid="add-contact-btn" onClick={() => setShowAdd(true)}
         className="inline-flex items-center gap-2 text-sm px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full transition-colors">
@@ -107,9 +150,16 @@ export default function Contacts() {
                     </div>
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <button data-testid={`delete-contact-${c.id}`} onClick={() => remove(c.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button data-testid={`history-contact-${c.id}`} onClick={() => openHistory(c)} title="Campaign history"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                        <History className="h-4 w-4" />
+                      </button>
+                      <button data-testid={`delete-contact-${c.id}`} onClick={() => remove(c.id)} title="Delete"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -145,6 +195,31 @@ export default function Contacts() {
             <p className="text-xs text-slate-400 mt-1">Columns: email, first_name, last_name, company, tags</p>
             <input ref={fileRef} data-testid="csv-file-input" type="file" accept=".csv" className="hidden" onChange={onFile} />
           </div>
+        </Modal>
+      )}
+
+      {historyView && (
+        <Modal title={`Campaign history — ${historyView.contact.email}`} onClose={() => setHistoryView(null)}>
+          {!historyView.items.length ? (
+            <p className="text-sm text-slate-400 py-6 text-center">This contact hasn't received any campaigns yet.</p>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {historyView.items.map((h, i) => (
+                <div key={i} data-testid={`history-row-${i}`} className="flex items-center justify-between border border-slate-100 rounded-xl px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-800 truncate">{h.campaign}</div>
+                    <div className="text-xs text-slate-400">{h.sent_at ? new Date(h.sent_at).toLocaleString() : "—"}</div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs shrink-0">
+                    {h.opened
+                      ? <span className="text-emerald-600 font-medium bg-emerald-50 rounded-full px-2 py-0.5">Opened{h.open_count ? ` ${h.open_count}×` : ""}</span>
+                      : <span className="text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">Not opened</span>}
+                    {h.clicked && <span className="text-amber-600 font-medium bg-amber-50 rounded-full px-2 py-0.5">Clicked</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Modal>
       )}
     </AppLayout>

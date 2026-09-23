@@ -6,14 +6,14 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { toast } from "sonner";
 import {
-  LogOut, CheckCircle2, AlertCircle, ChevronDown, Plus, Check, X, Layers,
+  LogOut, AlertCircle, ChevronDown, Plus, Check, X, Globe, Gem, Lock, Search,
 } from "lucide-react";
 
 const BASE_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/campaigns", label: "Campaigns" },
   { to: "/contacts", label: "Contacts" },
-  { to: "/integrations", label: "Office 365" },
+  { to: "/integrations", label: "Microsoft 365" },
   { to: "/settings", label: "Security" },
 ];
 
@@ -55,7 +55,7 @@ function WorkspaceSwitcher() {
     <div className="relative" ref={ref}>
       <button data-testid="workspace-switcher" onClick={() => setOpen(!open)}
         className="flex items-center gap-2 pl-2.5 pr-2.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors max-w-[220px]">
-        <Layers className="h-4 w-4 text-slate-400 shrink-0" />
+        <Globe className="h-4 w-4 text-slate-400 shrink-0" />
         <span className="text-sm font-medium text-slate-800 truncate">{current?.name || "Workspace"}</span>
         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -123,13 +123,28 @@ export default function AppLayout({ children, title, subtitle, actions }) {
 
   return (
     <div className="min-h-screen bg-[#F5F6F8]">
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/70">
+      <header className="sticky top-0 z-30 bg-[#F5F6F8]/90 backdrop-blur-xl">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-4">
           <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
           <div className="h-5 w-px bg-slate-200/60" />
-          <span className="hidden lg:block text-sm text-slate-400 font-medium capitalize mr-1">
-            {(user?.license?.plan || "free")} plan
-          </span>
+          <div className="hidden sm:flex items-center gap-1.5 mr-1">
+            <div className="relative group" data-testid="plan-chip">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 clara-trans hover:bg-amber-100 cursor-default">
+                <Gem className="h-[17px] w-[17px]" />
+              </span>
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 whitespace-nowrap rounded-lg bg-slate-900 text-white text-xs px-2.5 py-1 opacity-0 group-hover:opacity-100 clara-trans capitalize z-50">
+                {(user?.license?.plan || "free")} plan
+              </span>
+            </div>
+            <div className="relative group">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white clara-trans hover:bg-slate-800 cursor-default">
+                <Lock className="h-4 w-4" />
+              </span>
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 whitespace-nowrap rounded-lg bg-slate-900 text-white text-xs px-2.5 py-1 opacity-0 group-hover:opacity-100 clara-trans z-50">
+                Two-factor active
+              </span>
+            </div>
+          </div>
           <WorkspaceSwitcher />
 
           <nav className="hidden md:flex items-center gap-1 ml-3 flex-1">
@@ -151,6 +166,10 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           </nav>
 
           <div className="flex items-center gap-3 ml-auto">
+            <button onClick={() => navigate("/campaigns")} title="Search campaigns"
+              className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 clara-trans">
+              <Search className="h-[18px] w-[18px]" />
+            </button>
             <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200/60">
               <div className="h-9 w-9 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm shadow-rose-600/20">
                 {(user?.name || "U").slice(0, 1).toUpperCase()}

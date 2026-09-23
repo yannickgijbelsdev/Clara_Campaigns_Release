@@ -1,7 +1,9 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
+import { CheckCircle2, XCircle, Info, Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import TopLoadingBar from "@/components/TopLoadingBar";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Campaigns from "@/pages/Campaigns";
@@ -34,7 +36,18 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <AuthProvider>
-          <Toaster position="top-right" richColors />
+          <TopLoadingBar />
+          <Toaster
+            position="top-right"
+            gap={10}
+            toastOptions={{ duration: 3500, className: "clara-toast" }}
+            icons={{
+              success: <CheckCircle2 className="h-5 w-5 text-emerald-500" />,
+              error: <XCircle className="h-5 w-5 text-rose-500" />,
+              info: <Info className="h-5 w-5 text-indigo-500" />,
+              loading: <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />,
+            }}
+          />
           <Routes>
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/reset-password" element={<ResetPassword />} />

@@ -15,7 +15,7 @@ export default function Integrations() {
   const load = () => api.get("/mailbox").then((r) => setStatus(r.data)).catch(() => {});
   useEffect(() => {
     load();
-    if (params.get("connected")) { toast.success("Office 365 connected!"); setParams({}); }
+    if (params.get("connected")) { toast.success("Microsoft 365 connected!"); setParams({}); }
     if (params.get("error")) { toast.error(`Connection failed: ${params.get("error")}`); setParams({}); }
   }, []);
 
@@ -24,7 +24,7 @@ export default function Integrations() {
     try {
       const { data } = await api.get("/oauth/microsoft/start");
       if (!data.configured) {
-        toast.error("Office 365 is not configured yet by the administrator (Azure keys missing).");
+        toast.error("Microsoft 365 is not configured yet by the administrator (Azure keys missing).");
         setLoading(false);
         return;
       }
@@ -42,7 +42,7 @@ export default function Integrations() {
   };
 
   return (
-    <AppLayout title="Office 365 Integration" subtitle="Send newsletters from your own Microsoft 365 mailbox">
+    <AppLayout title="Microsoft 365 Integration" subtitle="Send newsletters from your own Microsoft 365 mailbox">
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="flex items-center gap-4 p-6 border-b border-slate-100">
@@ -50,7 +50,7 @@ export default function Integrations() {
               <svg viewBox="0 0 23 23" className="h-7 w-7"><path fill="#f25022" d="M1 1h10v10H1z"/><path fill="#7fba00" d="M12 1h10v10H12z"/><path fill="#00a4ef" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/></svg>
             </div>
             <div className="flex-1">
-              <h2 className="font-display font-semibold text-slate-900">Microsoft Office 365</h2>
+              <h2 className="font-display font-semibold text-slate-900">Microsoft 365</h2>
               <p className="text-sm text-slate-500">Send newsletters via Microsoft Graph, straight from your mailbox.</p>
             </div>
           </div>
@@ -71,7 +71,7 @@ export default function Integrations() {
                   <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                   <div>
                     <div className="text-sm font-medium text-emerald-800">Connected</div>
-                    <div className="text-sm text-emerald-700">{status.email || "Office 365 account"}</div>
+                    <div className="text-sm text-emerald-700">{status.email || "Microsoft 365 account"}</div>
                   </div>
                 </div>
                 <button data-testid="disconnect-o365" onClick={disconnect}

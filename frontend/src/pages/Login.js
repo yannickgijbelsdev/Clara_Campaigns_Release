@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 const BUBBLES = [
   { icon: LayoutTemplate, title: "Drag & Drop Builder", text: "Pre-built blocks for logo, images, titles, text and buttons.", pos: "top-[8%] left-[10%]", color: "text-rose-600 bg-rose-50" },
-  { icon: Send, title: "Office 365 Sending", text: "Send newsletters straight from your Microsoft 365 mailbox.", pos: "top-[20%] right-[8%]", color: "text-sky-600 bg-sky-50" },
+  { icon: Send, title: "Microsoft 365 Sending", text: "Send newsletters straight from your Microsoft 365 mailbox.", pos: "top-[20%] right-[8%]", color: "text-sky-600 bg-sky-50" },
   { icon: Upload, title: "CSV Import", text: "Bulk-import recipients with automatic column mapping.", pos: "top-[42%] left-[6%]", color: "text-violet-600 bg-violet-50" },
   { icon: MousePointerClick, title: "Open & Click Tracking", text: "See exactly who opened and clicked every campaign.", pos: "top-[52%] right-[10%]", color: "text-amber-600 bg-amber-50" },
   { icon: Lock, title: "Secure MFA Login", text: "Two-factor authentication with any authenticator app.", pos: "bottom-[14%] left-[12%]", color: "text-emerald-600 bg-emerald-50" },

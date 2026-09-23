@@ -328,7 +328,7 @@ function SendModal({ campaignId, onClose, onSent }) {
       const { data } = await api.post(`/campaigns/${campaignId}/send`, { contact_ids: ids });
       setProgress(true);
       const mode = data.mode;
-      setTimeout(() => toast.success(`Sent to ${data.recipients} recipient(s)${mode === "simulation" ? " (simulation)" : " via Office 365"}`), 100);
+      setTimeout(() => toast.success(`Sent to ${data.recipients} recipient(s)${mode === "simulation" ? " (simulation)" : " via Microsoft 365"}`), 100);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
       setSending(false);
@@ -360,7 +360,7 @@ function SendModal({ campaignId, onClose, onSent }) {
           )}
           {mailbox && !mailbox.connected && (
             <div className="mb-4 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-3">
-              Office 365 is not connected. The campaign will be sent in <b>simulation mode</b> (tracking works, but no real email goes out). Connect your mailbox via Office 365 to send for real.
+              Microsoft 365 is not connected. The campaign will be sent in <b>simulation mode</b> (tracking works, but no real email goes out). Connect your mailbox via Microsoft 365 to send for real.
             </div>
           )}
           <label className="flex items-center gap-2 mb-3 cursor-pointer">
@@ -407,7 +407,7 @@ function SendModal({ campaignId, onClose, onSent }) {
         open={progress}
         title="Sending your campaign"
         subtitle="Delivering to your recipients…"
-        steps={["Preparing your newsletter…", "Connecting to Office 365…", "Queuing recipients…", "Tracking enabled — all set!"]}
+        steps={["Preparing your newsletter…", "Connecting to Microsoft 365…", "Queuing recipients…", "Tracking enabled — all set!"]}
         onComplete={onSent}
       />
     </div>
