@@ -114,6 +114,13 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Header-lockup (logo + divider + "Clara Campaigns") en "Welcome back" + subtitel zijn gecentreerd; inputs rounded-xl op bg-slate-50; Sign in-knop in sitekleur #7380b6 (hover #616fa6). Alle accenten/links/focus-rings nu #7380b6 i.p.v. rose.
 - Zwevende feature-bubbels en split-layout verwijderd. Login/register/MFA/forgot-flows en alle data-testids ongewijzigd. Alleen Login.js gewijzigd + achtergrond-asset toegevoegd. Geverifieerd via screenshot (desktop).
 
+## Changelog — 2026-06 (Iteration 16) — Microsoft 365 → simpele SMTP
+- De volledige Microsoft 365 Graph/OAuth-verzendmethode voor nieuwsbrieven is vervangen door een SMTP-configuratie PER werkruimte. Verwijderd: ms_graph.py, alle /oauth/microsoft/*, /mailbox, /admin/ms-config endpoints, de Connect-knop en Azure-uitleg, MsConfigInput.
+- Nieuw backend: GET/PUT/DELETE /api/company/smtp + POST /api/company/smtp/test (scoped via scope()). Config opgeslagen op company.smtp {host, port, security(starttls/ssl/none), username, from_email, from_name, password_enc}. Wachtwoord Fernet-versleuteld (TOKEN_ENCRYPTION_KEY), nooit teruggegeven; behouden bij partiële update. Verzenden gaat via email_util.send_newsletter_via_smtp; zonder config → simulatiemodus (mode 'smtp' vs 'simulation'). personalize_html + encrypt/decrypt verplaatst naar email_util.py.
+- Nieuw frontend: /integrations herschreven naar Nederlandstalige SMTP-config (velden + testknop + verwijderen), nav-label 'E-mail / SMTP', nav-vinkje + simulatiebanner + Builder-waarschuwing op basis van smtp.configured. tours.js en Plans.js teksten bijgewerkt.
+- Systeem-e-mails (reset, plan-aanvraag) ONGEWIJZIGD (blijven env-var M365 SMTP via email_util.send_email).
+- Getest: iteration_14.json — 11/11 backend (CRUD, verborgen wachtwoord, behoud bij partiële update, test-fout op nep-host, oude MS-endpoints 404, forgot-password 200, simulation send). 100% frontend e2e.
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.

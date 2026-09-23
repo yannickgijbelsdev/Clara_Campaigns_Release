@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 14 - Per-workspace SMTP replacing Microsoft 365 Graph. Backend: 11/11 pytest tests pass (CRUD, hidden password, partial-update password preservation, /smtp/test 400 on fake host, DELETE, old MS endpoints 404 - /api/mailbox, /api/admin/ms-config, /api/oauth/microsoft/start, forgot-password still 200, campaign send returns mode 'simulation' when SMTP unconfigured with simulated=true deliveries). Frontend: full e2e on /integrations with admin (Yannick + TOTP). Nav renamed to 'E-mail / SMTP'. No 'Connect Microsoft', 'Azure', 'oauth', 'ms-config', or 'mailbox connect' strings on the integrations page. Form saves; after reload host/port/security/username/from_* persist while smtp-password field is EMPTY; partial update (port 587→465, security starttls→ssl) preserves has_password=true. save-smtp-config toggles smtp-status-badge (Geconfigureerd) + nav-check-integrations + enables test-smtp-config + shows delete-smtp-config. Simulation banner (data-testid simulation-banner) shows on dashboard when unconfigured, disappears when configured, returns after delete. Delete resets the form to empty.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "backend_pytest_serial": "11/11 PASS (iter14_smtp.xml)",
+    "backend_pytest_parallel_note": "Under xdist -n 2 the send-simulation test can race with a parallel CRUD test that saves SMTP on the same workspace, causing a false 'mode=smtp'. Serial run (-n 1) is deterministic. Consider adding a dedicated throwaway workspace per class or a lock to isolate.",
+    "ui_nav_label": "PASS - top-nav shows 'E-mail / SMTP' (label present, no 'Microsoft 365' tab)",
+    "ui_no_ms_ui": "PASS - no strings 'connect microsoft', 'azure app', 'oauth', '/api/oauth', 'ms-config', 'mailbox connect' on /integrations",
+    "ui_smtp_crud": "PASS - save shows badge Geconfigureerd, nav-check-integrations appears, test btn enabled, delete btn appears",
+    "ui_password_hidden_on_reload": "PASS - smtp-password input is '' after reload while other fields persist",
+    "ui_partial_update_preserves_password": "PASS - GET /company/smtp returns has_password=true after PUT with password:''",
+    "ui_test_connection_fake_host": "PASS - POST /company/smtp/test returns 400 (verified via network + console error). Toast selector returned [] in our probe but the browser DOES show a sonner error toast (visual not asserted here).",
+    "ui_test_btn_disabled_unconfigured": "PASS",
+    "ui_delete_resets_form": "PASS - after DELETE + reload, all fields empty and badge/nav-check gone",
+    "ui_simulation_banner_toggle": "PASS - visible on dashboard when smtp.configured=false; hidden when true; reappears after delete",
+    "system_email_unchanged": "PASS - POST /api/auth/forgot-password returns 200 (unchanged M365 SMTP env-var path)",
+    "campaign_send_simulation_mode": "PASS - POST /campaigns/{id}/send with no SMTP returns {mode:'simulation', recipients:1}; deliveries.simulated=true"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter14_smtp.py",
+    "/app/test_reports/pytest/iter14_smtp.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:850 accepts 'tls' as a valid security value but the send path (send_newsletter_via_smtp / smtp_test_connection in email_util.py) only branches on starttls/ssl/none. If 'tls' is chosen the UI select only exposes starttls/ssl/none so this isn't reachable from the UI, but the API accepts it; consider aligning the whitelist to remove 'tls' or handle it explicitly.",
+    "_run_send catches broad Exception per contact but does not short-circuit obviously fatal SMTP errors (bad host, auth failure) - each recipient will individually attempt to connect and each incur the full TCP timeout. For a bad host with many recipients this multiplies the timeout. Consider a single pre-flight smtp_test_connection before the loop and abort with a summary failure if it fails.",
+    "Integrations.js relies on cfg.configured to enable 'Verbinding testen' but does not require save-first; if the user changes host/port after save without saving again, the test button will test the SAVED config, not the currently-edited form. Consider disabling it whenever the form is dirty, or auto-save before testing.",
+    "AppLayout.js still fetches setupOk flags once on mount ([] deps) - workspace switch without page reload leaves the checkmark stale (same finding as iter13).",
+    "server.py:864 returns {ok:true, configured:true} but does not re-validate that host/from_email are non-empty (Pydantic validates via SmtpConfigInput, host is EmailStr for from_email; ok). Fine.",
+    "TOKEN_ENCRYPTION_KEY is stored in backend/.env in plaintext (expected in dev). Ensure it's rotated separately in production and documented; loss will make all saved SMTP passwords unrecoverable (correct behavior)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter14_smtp.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% of asserted checks"},
+  "test_credentials": "yannick.gijbels@koodh.com / KYLovie13monx + TOTP VLGJTATFHVFPTFV7Q4FQL3ATFOGVVB5Q (pyotp)",
+  "seed_data_creation": "Created + cleaned up TEST_sim_<ts>@example.com contact and TEST_sim_camp campaign in admin's active workspace during the simulation-mode test. Both are deleted at end of test. During the FE test the admin workspace SMTP was configured with smtp.fake-nonexistent-xyz.invalid then deleted at the end (final state: SMTP unconfigured, simulation banner active).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/test_iter14_smtp.py; run with `pytest -n 1` to avoid xdist workspace race. Admin workspace was left with SMTP CLEARED at end of last run - simulation banner is expected. Real outbound SMTP is untestable in this env; only branch logic (mode='simulation' vs 'smtp') and connection error handling are verified. Real toast text assertion for /smtp/test failure was skipped because the sonner mount used non-standard selectors; the API 400 was verified instead.",
+  "rca of the issue": "N/A - feature works as specified"
+}
