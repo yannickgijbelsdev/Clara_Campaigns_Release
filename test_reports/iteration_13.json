@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only verification of nav-check-* checkmarks on top-nav for Clara Campaigns. All three cases behave per spec on both desktop (1920x1080) and mobile (390x844).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "api_check_shown_when_website_set": "PASS - nav-check-developers present on UITEST_TEST_UI_Brand (website=https://example.com)",
+    "branding_check_absent_when_no_logo": "PASS - nav-check-branding absent when has_logo=false",
+    "branding_check_shown_after_logo_upload": "PASS - after POST /api/company/logo with X-Company-Id=UITEST workspace, has_logo=true and nav-check-branding rendered in DOM",
+    "integrations_check_absent_in_simulation": "PASS - nav-check-integrations absent while mailbox.connected=false",
+    "regression_active_pill": "PASS - Dashboard nav item shows dark rounded pill; nav layout renders correctly at 1920 & 390",
+    "mobile_nav_render": "PASS - checkmarks render on mobile nav row; expected horizontal scroll on overflow-x-auto container",
+    "negative_cases": "PASS - nav-check-* elements are omitted from DOM entirely when their setupOk flag is false (validated via query_selector null)"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AppLayout.js fetches /mailbox, /subscribe/settings, /company/branding once on mount ([] deps). If a user changes workspace via WorkspaceSwitcher without a full page reload, setupOk flags will not update (they will reflect the previous workspace). Consider re-fetching when the selected company (localStorage clara_company) changes, e.g. via a storage event or a context.",
+    "No delete/reset endpoint for company logo; QA cleanup required a direct DB unset. Consider adding DELETE /api/company/logo for parity and test cleanup."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "admin@claracampaigns.com / Admin123! + TOTP UPC5QPTQXSSHNMXXCMSUNFBDBFPBSTEQ (used pyotp)",
+  "seed_data_creation": "Temporarily uploaded a 1x1 PNG logo to workspace 6ab3e2fb6d4c335fc26d6cf5 (UITEST_TEST_UI_Brand) to validate positive branding case, then reset company doc via mongo $unset {logo_path, logo_url, logo_version} to restore prior state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "UITEST_TEST_UI_Brand workspace (clara_company id 6ab3e2fb6d4c335fc26d6cf5) has website set but no logo (restored). Admin's own default workspace (6ab41432520142934a466bb1) still has a leftover logo from earlier debug uploads; if that matters, unset logo_path/logo_url/logo_version. Frontend axios sends X-Company-Id from localStorage 'clara_company' — critical when scripting backend uploads to hit the same workspace the browser sees.",
+  "rca of the issue": "N/A - feature works as specified"
+}

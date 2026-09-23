@@ -102,6 +102,10 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Backend: GET/PUT/DELETE /api/admin/ms-config; stored in db.app_settings {_id:'ms_graph'} with the secret Fernet-encrypted (TOKEN_ENCRYPTION_KEY); secret is never returned by the API. ms_graph reads creds from a runtime cache (DB first, env fallback), loaded at startup and refreshed on save. No redeploy needed — takes effect immediately.
 - Verified: iteration_12.json — 12/12 backend + frontend (auth gating, encryption-at-rest, secret preservation on partial update, validation, DELETE, SMTP regression).
 
+## Changelog — 2026-09-23 (Iteration 13) — Setup checkmarks in nav
+- The top-nav menu items now show a green checkmark when correctly configured: Microsoft 365 (mailbox connected), Branding (company logo uploaded → has_logo), API (subscribe API connected or a website linked). Frontend-only in AppLayout.js using existing /mailbox, /subscribe/settings, /company/branding; data-testids nav-check-integrations / nav-check-branding / nav-check-developers. Renders on desktop + mobile nav.
+- Verified: iteration_13.json — 100% frontend (checks show when configured, absent when not, both viewports).
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.
