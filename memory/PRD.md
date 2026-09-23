@@ -71,3 +71,8 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Send modal warning: if the newsletter uses a name tag and some target recipients have no first/last name filled in, a notice "Name can't be personalized for N contact(s)" lists exactly which contacts (by email) are affected (data-testid personalization-warning + missing-name-<id>). Hidden when no name tag is used or all recipients have names.
 - Reset email now carries the Clara header branding (logo mark + vertical divider + bold "Clara Campaigns"); logo hosted on public S3 (assets/clara-mark.png).
 - Tested: iteration_6.json — 10/10 backend; chip insertion + send warning verified via UI.
+
+## Changelog — 2026-09-23 (Iteration 6b)
+- Merge-tag fallback: tokens now support {{first_name|there}} syntax — when the contact's value is empty the fallback text is used instead (server.py _apply_merge_tags, regex captures optional |fallback; values HTML-escaped).
+- Builder: the "Personalize" panel has a "Fallback when empty" input; chips insert {{key|fallback}} when a fallback is typed, otherwise {{key}}.
+- Send warning now only appears when a name tag is used WITHOUT a fallback and some recipients lack the name; a fallback suppresses the notice. Verified via UI.

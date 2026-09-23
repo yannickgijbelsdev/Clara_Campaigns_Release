@@ -1039,24 +1039,30 @@ def MS_storage_logo(company):
     return storage.get_object(company["logo_path"])
 
 
-_MERGE_RE = re.compile(r"\{\{\s*([a-zA-Z_]+)\s*\}\}")
+_MERGE_RE = re.compile(r"\{\{\s*([a-zA-Z_]+)\s*(?:\|([^}]*?))?\s*\}\}")
 
 
 def _apply_merge_tags(html: str, ct: dict) -> str:
     """Replace {{first_name}}, {{last_name}}, {{email}}, {{name}} with the
-    contact's attributes. Missing values become an empty string."""
+    contact's attributes. Supports an optional fallback: {{first_name|there}}
+    is used when the value is empty. Values are HTML-escaped."""
     fn = (ct.get("first_name") or "").strip()
     ln = (ct.get("last_name") or "").strip()
-    values = {
-        "first_name": html_lib.escape(fn),
-        "last_name": html_lib.escape(ln),
-        "email": html_lib.escape(ct.get("email", "")),
-        "name": html_lib.escape((f"{fn} {ln}").strip()),
+    raw = {
+        "first_name": fn,
+        "last_name": ln,
+        "email": ct.get("email", ""),
+        "name": (f"{fn} {ln}").strip(),
     }
 
     def sub(m):
         key = m.group(1).strip().lower()
-        return values[key] if key in values else m.group(0)
+        if key not in raw:
+            return m.group(0)
+        val = raw[key]
+        if not val and m.group(2) is not None:
+            val = m.group(2).strip()
+        return html_lib.escape(val)
 
     return _MERGE_RE.sub(sub, html)
 

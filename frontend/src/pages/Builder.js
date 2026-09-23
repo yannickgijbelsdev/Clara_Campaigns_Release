@@ -12,10 +12,10 @@ import {
 } from "lucide-react";
 
 const MERGE_TAGS = [
-  { token: "{{first_name}}", label: "First name" },
-  { token: "{{last_name}}", label: "Last name" },
-  { token: "{{name}}", label: "Full name" },
-  { token: "{{email}}", label: "Email" },
+  { key: "first_name", label: "First name" },
+  { key: "last_name", label: "Last name" },
+  { key: "name", label: "Full name" },
+  { key: "email", label: "Email" },
 ];
 
 const PALETTE = [
@@ -295,20 +295,28 @@ export default function Builder() {
 function L({ children }) { return <label className="block text-[11px] font-medium text-slate-600 mb-1">{children}</label>; }
 
 function TagInserter({ onInsert }) {
+  const [fb, setFb] = useState("");
+  const build = (key) => (fb.trim() ? `{{${key}|${fb.trim()}}}` : `{{${key}}}`);
   return (
     <div className="mb-3 -mt-1">
       <div className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-1.5 flex items-center gap-1">
         <User className="h-3 w-3" /> Personalize
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5 mb-2">
         {MERGE_TAGS.map((t) => (
-          <button key={t.token} type="button" data-testid={`insert-tag-${t.token.replace(/[{}]/g, "")}`}
-            onClick={() => onInsert(t.token)}
+          <button key={t.key} type="button" data-testid={`insert-tag-${t.key}`}
+            onClick={() => onInsert(build(t.key))}
             className="text-[11px] px-2 py-1 rounded-full bg-[#7380b6]/10 text-[#7380b6] hover:bg-[#7380b6]/20 font-medium clara-trans">
             + {t.label}
           </button>
         ))}
       </div>
+      <input data-testid="tag-fallback-input" value={fb} onChange={(e) => setFb(e.target.value)}
+        placeholder="Fallback when empty (e.g. there)"
+        className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-[#7380b6] outline-none" />
+      <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+        Set a fallback so empty names still read nicely (e.g. "Hi there"). Without one, you'll get a notice about contacts missing a name.
+      </p>
     </div>
   );
 }
