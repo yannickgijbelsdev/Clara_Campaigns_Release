@@ -1,0 +1,32 @@
+{
+  "summary": "Iter7 backend testing for Clara Campaigns logo in sent emails. All 11 tests pass (100%). Verified: (1) ms_graph.personalize_html footer contains CLARA_MARK image URL + bold 'Clara Campaigns' both when company has no logo and when it has its own logo; (2) CLARA_MARK asset URL is publicly reachable (HTTP 200, content-type image/png); (3) email_util.reset_email_html contains CLARA_MARK + bold 'Clara Campaigns' branding and passes _assert_safe_email safety gate without raising; (4) E2E campaign send in simulation mode (Microsoft 365 not connected) succeeds — POST /api/campaigns/{id}/send returns ok:true, mode:'simulation', and all deliveries move to status='sent'; (5) Regression: merge-tag personalization ({{first_name|fallback}}, {{email}}) still works when personalize_html runs after _apply_merge_tags in the send pipeline.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter7_logo_footer.py",
+    "/app/test_reports/pytest/pytest_iter7.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ms_graph.py: footer HTML is safe (uses absolute https CLARA_MARK on allowed host). No injection risk observed in the branding block.",
+    "email_util.reset_email_html properly escapes user name and uses absolute https for the logo image so _assert_safe_email passes.",
+    "Server on_event deprecation warnings still present (pre-existing, not related to this fix)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter7_logo_footer.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "n/a (skipped)"},
+  "test_credentials": "admin@claracampaigns.com / Admin123! (TOTP UPC5QPTQXSSHNMXXCMSUNFBDBFPBSTEQ)",
+  "seed_data_creation": "Two TEST_iter7_* contacts and one TEST_iter7_* campaign are created and torn down within module fixtures.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter7 test file added at /app/backend/tests/test_iter7_logo_footer.py — reusable regression suite for Clara logo footer in ms_graph.personalize_html and email_util.reset_email_html. Note: tests must load /app/backend/.env AND /app/frontend/.env because MONGO_URL (server import chain) and REACT_APP_BACKEND_URL (test HTTP calls) live in different files.",
+  "rca of the issue": "N/A — bug fix verified working. The logo appears via <img src=CLARA_MARK> plus bold 'Clara Campaigns' text in both the newsletter footer (after 'Sent with ') and the password-reset email header (with vertical divider)."
+}

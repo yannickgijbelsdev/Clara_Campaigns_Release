@@ -16,6 +16,28 @@ EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Clara Campaigns")
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER", "")
+CLARA_MARK = "https://koodh-clara.nbg1.your-objectstorage.com/assets/clara-mark.png"
+
+
+def clara_brand_header(on_dark: bool = True) -> str:
+    """Clara Campaigns lockup for email headers: logo mark in a white badge +
+    vertical divider + bold 'Clara Campaigns'. White badge keeps the mark visible
+    on any background."""
+    text_color = "#ffffff" if on_dark else "#0f172a"
+    divider = "#334155" if on_dark else "#cbd5e1"
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:6px"><tr>'
+        '<td style="vertical-align:middle">'
+        '<span style="display:inline-block;width:36px;height:36px;background:#ffffff;'
+        'border-radius:9999px;text-align:center;line-height:36px;box-shadow:0 1px 3px rgba(0,0,0,0.15)">'
+        f'<img src="{CLARA_MARK}" width="20" height="20" alt="Clara Campaigns" '
+        'style="vertical-align:middle;border:0;width:20px;height:20px" /></span></td>'
+        f'<td style="vertical-align:middle;padding:0 14px"><div style="width:1px;height:26px;'
+        f'background:{divider};font-size:0;line-height:26px">&nbsp;</div></td>'
+        f'<td style="vertical-align:middle"><span style="font-size:19px;font-weight:700;'
+        f'color:{text_color};font-family:Arial,Helvetica,sans-serif;letter-spacing:0.2px">Clara Campaigns</span></td>'
+        '</tr></table>'
+    )
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
 _CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
@@ -151,18 +173,7 @@ async def send_email(*, to, subject, html):
 
 def reset_email_html(name, reset_url):
     from html import escape
-    mark = "https://koodh-clara.nbg1.your-objectstorage.com/assets/clara-mark.png"
-    brand_row = (
-        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:6px">'
-        '<tr>'
-        f'<td style="vertical-align:middle"><img src="{mark}" width="30" height="30" alt="Clara" '
-        'style="display:block;border:0;width:30px;height:30px" /></td>'
-        '<td style="vertical-align:middle;padding:0 14px">'
-        '<div style="width:1px;height:26px;background:#334155;line-height:26px;font-size:0">&nbsp;</div></td>'
-        '<td style="vertical-align:middle"><span style="font-size:19px;font-weight:700;color:#ffffff;'
-        'font-family:Arial,Helvetica,sans-serif;letter-spacing:0.2px">Clara Campaigns</span></td>'
-        '</tr></table>'
-    )
+    brand_row = clara_brand_header(on_dark=True)
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         'style="background:#0f172a;padding:32px 0;font-family:Arial,Helvetica,sans-serif">'
