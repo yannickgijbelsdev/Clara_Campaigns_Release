@@ -106,6 +106,9 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - The top-nav menu items now show a green checkmark when correctly configured: Microsoft 365 (mailbox connected), Branding (company logo uploaded → has_logo), API (subscribe API connected or a website linked). Frontend-only in AppLayout.js using existing /mailbox, /subscribe/settings, /company/branding; data-testids nav-check-integrations / nav-check-branding / nav-check-developers. Renders on desktop + mobile nav.
 - Verified: iteration_13.json — 100% frontend (checks show when configured, absent when not, both viewports).
 
+## Changelog — 2026-06 (Iteration 14) — Zachtere blauwe nav-vinkjes
+- De integratie-vinkjes in de top-nav (desktop + mobiel) zijn nu een klein, subtiel blauw vinkje (#7380b6 @ 70%) ZONDER gevulde achtergrondcirkel, i.p.v. het felle groene badge-bolletje. Op de actieve (donkere) desktop-pill wordt het vinkje wit/80 zodat het leesbaar blijft. Alleen AppLayout.js gewijzigd; data-testids ongewijzigd (nav-check-*).
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.

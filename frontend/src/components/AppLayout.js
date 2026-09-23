@@ -308,9 +308,8 @@ export default function AppLayout({ children, title, subtitle, actions }) {
                   <span className={`relative z-10 whitespace-nowrap flex items-center gap-1.5 ${active ? "text-white" : "text-slate-500"}`}>
                     {label}
                     {setupOk[to] && (
-                      <span data-testid={`nav-check-${to.slice(1)}`}
-                        className={`flex h-4 w-4 items-center justify-center rounded-full ${active ? "bg-emerald-400/90" : "bg-emerald-500"}`}>
-                        <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />
+                      <span data-testid={`nav-check-${to.slice(1)}`} className="flex items-center justify-center">
+                        <Check className={`h-3.5 w-3.5 ${active ? "text-white/80" : "text-[#7380b6]/70"}`} strokeWidth={2.5} />
                       </span>
                     )}
                   </span>
@@ -340,8 +339,8 @@ export default function AppLayout({ children, title, subtitle, actions }) {
               className={({ isActive }) => `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-slate-100"}`}>
               {label}
               {setupOk[to] && (
-                <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500">
-                  <Check className="h-2 w-2 text-white" strokeWidth={4} />
+                <span className="flex items-center justify-center">
+                  <Check className="h-3 w-3 text-[#7380b6]/70" strokeWidth={2.5} />
                 </span>
               )}
             </NavLink>
