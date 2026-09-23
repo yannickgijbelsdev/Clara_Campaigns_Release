@@ -29,7 +29,7 @@ from models import (
     ForgotInput, ResetInput, MfaCodeInput, PasswordChangeInput,
     BrandingInput, AdminCompaniesInput, CategoryInput,
     SubscribeSettingsInput, PublicSubscribeInput, PlanRequestInput, now_iso,
-    AdminUserUpdateInput, CompanyUpdateInput,
+    AdminUserUpdateInput, CompanyUpdateInput, MsConfigInput,
 )
 import email_util
 import storage
@@ -812,7 +812,45 @@ async def admin_update_company(company_id: str, data: CompanyUpdateInput, user=D
     return {"ok": True, "name": data.name.strip()}
 
 
-# ============ OFFICE 365 MAILBOX ============
+@api.get("/admin/ms-config")
+async def get_ms_config(user=Depends(A.get_current_user)):
+    require_admin(user)
+    doc = await db.app_settings.find_one({"_id": "ms_graph"}) or {}
+    return {
+        "client_id": doc.get("client_id") or os.environ.get("MS_CLIENT_ID") or "",
+        "tenant": doc.get("tenant") or os.environ.get("MS_TENANT") or "",
+        "has_secret": bool(doc.get("client_secret_enc") or os.environ.get("MS_CLIENT_SECRET")),
+        "configured": MS.is_configured(),
+        "system_mail_ready": MS.system_mail_ready(),
+        "redirect_uri": MS.redirect_uri_public(),
+    }
+
+
+@api.put("/admin/ms-config")
+async def set_ms_config(data: MsConfigInput, user=Depends(A.get_current_user)):
+    require_admin(user)
+    doc = await db.app_settings.find_one({"_id": "ms_graph"}) or {}
+    client_id = data.client_id.strip()
+    tenant = data.tenant.strip()
+    if not client_id or not tenant:
+        raise HTTPException(status_code=400, detail="Client ID and Tenant ID are required.")
+    update = {"client_id": client_id, "tenant": tenant, "updated_at": now_iso()}
+    if data.client_secret and data.client_secret.strip():
+        update["client_secret_enc"] = MS.encrypt_secret(data.client_secret.strip())
+        secret = data.client_secret.strip()
+    else:
+        secret = MS.decrypt_secret(doc.get("client_secret_enc", ""))
+    await db.app_settings.update_one({"_id": "ms_graph"}, {"$set": update}, upsert=True)
+    MS.set_creds(client_id, secret, tenant)
+    return {"ok": True, "configured": MS.is_configured(), "system_mail_ready": MS.system_mail_ready()}
+
+
+@api.delete("/admin/ms-config")
+async def clear_ms_config(user=Depends(A.get_current_user)):
+    require_admin(user)
+    await db.app_settings.delete_one({"_id": "ms_graph"})
+    MS.set_creds(None, None, None)
+    return {"ok": True}
 @api.get("/oauth/microsoft/start")
 async def ms_start(user=Depends(A.get_current_user)):
     if not MS.is_configured():
@@ -1371,6 +1409,10 @@ async def startup():
         await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD", "yannick.gijbels@koodh.com", "KYLovie13monx")
     except Exception as exc:
         logger.error(f"admin seed failed (continuing): {exc}")
+    try:
+        await MS.load_ms_creds_from_db()
+    except Exception as exc:
+        logger.error(f"MS creds load failed (continuing): {exc}")
     asyncio.create_task(_scheduler_loop())
     logger.info("Clara Campaigns backend started")
 

@@ -146,6 +146,12 @@ class CompanyUpdateInput(BaseModel):
     name: str = Field(min_length=1, max_length=160)
 
 
+class MsConfigInput(BaseModel):
+    client_id: str = Field(default="", max_length=200)
+    client_secret: Optional[str] = Field(default=None, max_length=500)
+    tenant: str = Field(default="", max_length=200)
+
+
 class SendInput(BaseModel):
     contact_ids: Optional[List[str]] = None  # None = all contacts
     category_ids: Optional[List[str]] = None

@@ -20,20 +20,64 @@ def _get_fernet():
     return Fernet(key.encode())
 
 
+def encrypt_secret(value: str) -> str:
+    return _get_fernet().encrypt(value.encode()).decode()
+
+
+def decrypt_secret(value: str) -> str:
+    if not value:
+        return ""
+    return _get_fernet().decrypt(value.encode()).decode()
+
+
+# Runtime Microsoft app credentials (set from DB via the admin UI; env is fallback).
+_creds = {"client_id": None, "client_secret": None, "tenant": None}
+
+
+def set_creds(client_id, client_secret, tenant):
+    global _app_cca
+    _creds["client_id"] = (client_id or "").strip() or None
+    _creds["client_secret"] = (client_secret or "").strip() or None
+    _creds["tenant"] = (tenant or "").strip() or None
+    _app_cca = None  # reset the cached app-only client
+
+
+async def load_ms_creds_from_db():
+    doc = await db.app_settings.find_one({"_id": "ms_graph"})
+    if not doc:
+        return
+    secret = ""
+    if doc.get("client_secret_enc"):
+        try:
+            secret = decrypt_secret(doc["client_secret_enc"])
+        except Exception:
+            secret = ""
+    set_creds(doc.get("client_id"), secret, doc.get("tenant"))
+
+
+def _cid():
+    return _creds["client_id"] or os.environ.get("MS_CLIENT_ID")
+
+
+def _csecret():
+    return _creds["client_secret"] or os.environ.get("MS_CLIENT_SECRET")
+
+
+def _tenant_id():
+    return _creds["tenant"] or os.environ.get("MS_TENANT") or "organizations"
+
+
 def is_configured() -> bool:
-    return bool(os.environ.get("MS_CLIENT_ID") and os.environ.get("MS_CLIENT_SECRET"))
+    return bool(_cid() and _csecret())
 
 
 def system_mail_ready() -> bool:
     """App-only (client credentials) sending as EMAIL_SENDER is ready.
     Requires a concrete tenant GUID/domain — not 'organizations'/'common'."""
-    tenant = (os.environ.get("MS_TENANT") or "").strip().lower()
+    tenant = (_tenant_id() or "").strip().lower()
     return bool(
-        os.environ.get("MS_CLIENT_ID")
-        and os.environ.get("MS_CLIENT_SECRET")
-        and os.environ.get("EMAIL_SENDER")
-        and tenant
-        and tenant not in ("organizations", "common", "consumers")
+        _cid() and _csecret() and os.environ.get("EMAIL_SENDER")
+        and tenant and tenant not in ("organizations", "common", "consumers")
     )
 
 
@@ -44,9 +88,9 @@ def _app_client():
     global _app_cca
     if _app_cca is None:
         _app_cca = msal.ConfidentialClientApplication(
-            os.environ["MS_CLIENT_ID"],
-            authority=f"{AUTHORITY_BASE}/{os.environ['MS_TENANT']}",
-            client_credential=os.environ["MS_CLIENT_SECRET"],
+            _cid(),
+            authority=f"{AUTHORITY_BASE}/{_tenant_id()}",
+            client_credential=_csecret(),
         )
     return _app_cca
 
@@ -80,8 +124,7 @@ async def send_system_mail(*, to: str, subject: str, html: str):
 
 
 def _authority() -> str:
-    tenant = os.environ.get("MS_TENANT", "organizations")
-    return f"{AUTHORITY_BASE}/{tenant}"
+    return f"{AUTHORITY_BASE}/{_tenant_id()}"
 
 
 def _redirect_uri() -> str:
@@ -89,11 +132,15 @@ def _redirect_uri() -> str:
     return f"{base}/api/oauth/microsoft/callback"
 
 
+def redirect_uri_public() -> str:
+    return _redirect_uri()
+
+
 def msal_app(cache=None):
     return msal.ConfidentialClientApplication(
-        os.environ["MS_CLIENT_ID"],
+        _cid(),
         authority=_authority(),
-        client_credential=os.environ["MS_CLIENT_SECRET"],
+        client_credential=_csecret(),
         token_cache=cache,
     )
 
