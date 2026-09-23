@@ -3,6 +3,9 @@ import re
 import ipaddress
 import logging
 import httpx
+import aiosmtplib
+from email.message import EmailMessage
+from email.utils import formataddr
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 from fastapi import HTTPException
@@ -12,6 +15,7 @@ logger = logging.getLogger("clara.email")
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Clara Campaigns")
+EMAIL_SENDER = os.environ.get("EMAIL_SENDER", "")
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
 _CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
@@ -85,19 +89,52 @@ def _assert_safe_email(subject, html):
                 raise ValueError(f"Anchor text {m.group(1)!r} != real host {real!r} (G3)")
 
 
+def smtp_ready() -> bool:
+    """SMTP (Microsoft 365) sending from EMAIL_SENDER is configured."""
+    return bool(
+        os.environ.get("SMTP_HOST")
+        and os.environ.get("SMTP_USER")
+        and os.environ.get("SMTP_PASSWORD")
+        and os.environ.get("EMAIL_SENDER")
+    )
+
+
+async def _send_via_smtp(*, to, subject, html):
+    """Send a system email FROM EMAIL_SENDER (clara@koodh.com) via Microsoft 365
+    SMTP (smtp.office365.com:587, STARTTLS)."""
+    msg = EmailMessage()
+    msg["From"] = formataddr((EMAIL_FROM_NAME, os.environ["EMAIL_SENDER"]))
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content("Please view this email in an HTML-capable email client.")
+    msg.add_alternative(html, subtype="html")
+    smtp = aiosmtplib.SMTP(
+        hostname=os.environ["SMTP_HOST"],
+        port=int(os.environ.get("SMTP_PORT", "587")),
+        start_tls=False, use_tls=False, timeout=30,
+    )
+    await smtp.connect()
+    try:
+        await smtp.starttls()
+        await smtp.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
+        await smtp.send_message(msg)
+    finally:
+        if smtp.is_connected:
+            await smtp.quit()
+
+
 async def send_email(*, to, subject, html):
     _assert_safe_email(subject, html)
     # Prefer sending system emails from EMAIL_SENDER (clara@koodh.com) via the
-    # customer's own Microsoft 365 when app-only sending is configured.
-    import ms_graph as MS
-    if MS.system_mail_ready():
+    # customer's own Microsoft 365 SMTP when configured.
+    if smtp_ready():
         try:
-            await MS.send_system_mail(to=to, subject=subject, html=html)
-            return "graph"
+            await _send_via_smtp(to=to, subject=subject, html=html)
+            return "smtp"
         except Exception as e:
-            logger.error(f"System email via Microsoft 365 failed: {e}")
+            logger.error(f"System email via Microsoft 365 SMTP failed: {e}")
             raise HTTPException(status_code=502, detail="Failed to send email")
-    # Fallback (before Microsoft 365 is configured): Emergent managed email.
+    # Fallback (before Microsoft 365 SMTP is configured): Emergent managed email.
     payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
     try:
         async with httpx.AsyncClient(timeout=30) as client:

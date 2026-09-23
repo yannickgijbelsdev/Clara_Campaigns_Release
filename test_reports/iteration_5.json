@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 5 covers admin user edit/delete/send-reset, admin company rename, plans page current-plan + instant free downgrade, and BearLoader ~4s gate on Branding/API pages + login progress overlay. Wrote /app/backend/tests/test_iter5_features.py (11 tests, all pass). Frontend Playwright verified: (1) admin login flow shows [data-testid=progress-overlay] with [data-testid=progress-overlay-tip] rotating tip (bear + 'Tip · Segment your audience...') during redirect to /dashboard; (2) /admin Users tab lists 40 rows (matches backend), each row has edit-user-<id>, delete-user-<id>, reset-user-<id>; Edit modal opens (edit-user-name, edit-user-role, save-user-btn), saved name change triggered 'User updated' toast and new name appeared in table; (3) /admin Companies tab lists 23 companies; edit-company-<id> opens modal (edit-company-name + save-company-btn), rename persisted with 'Company renamed' toast; (4) /plans shows plan-card-free|pro|enterprise, current-plan-free indicator on the free card + 'Your current plan' button, request-plan-pro opens [data-testid=quote-popup]; clicking request-plan-free (with a fresh account currently on any plan) instantly returns and current-plan-free indicator remains; (5) Bear loader on /branding: appeared within ~0.3s, [data-testid=bear-loader-tip] shows a rotating English tip, and loader stayed ~4.39s before content — matches the ~4s useLoadingGate. Same on /developers (~4.38s). Backend: GET /api/admin/users returns 200 with list; PATCH /api/admin/users/{id} updates name and role; self-demote and self-delete both correctly return 400; POST /api/admin/users/{id}/send-reset returns 200 and creates a password_reset_tokens doc (Emergent fallback expected); DELETE /api/admin/users/{id} on a freshly registered disposable user returns 200 and the user is gone; PATCH /api/admin/companies/{id} rename returns 200; POST /api/plan/request {plan:'free'} for non-admin returns {instant:true, paid:false, plan:'free'} and DB license becomes {plan:'free', active:true}; pro/enterprise return {paid:true, instant:false}. 11/11 backend, all frontend flows OK.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/admin/users/{id}/send-reset",
+        "issue": "MS Graph app-only not configured (expected per iteration note). Email currently goes via Emergent fallback. Endpoint returns 200 only if _create_and_send_reset succeeds; a Graph token failure would surface as 502 to the admin (good), but the Emergent fallback path swallows failures silently in email_util.send_email."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Administration / Users tab",
+        "issues": ["First-time admin walkthrough popover ('Administration 1 of 5') overlays the users table on load; a Playwright click on the first edit-user-<id> is intercepted until the popover is dismissed. Consider a data-testid on the walkthrough close button, or automatically not showing it when the user has visited /admin before."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter5_features.py",
+    "/app/test_reports/pytest/pytest_iter5.xml"
+  ],
+  "action_items": [
+    "(nit) Consider exposing whether send_email actually delivered vs simulated so admin-visible 'Reset email sent' toast is truthful even in fallback mode.",
+    "(nit) The admin walkthrough popover intercepts pointer events over the users table on first visit — either mark it dismissable via Escape (already works) or namespace it out of automated flows."
+  ],
+  "critical_code_review_comments": [
+    "server.py admin_delete_user cascades company/campaign/contact/delivery cleanup — good — but does NOT null out invitations, sent-campaign histories, or plan_requests referencing the deleted user_id. Consider adding a plan_requests + audit cleanup step, or storing the email snapshot so audit trails survive user deletion.",
+    "server.py admin_update_user allows changing email but does not invalidate existing JWTs / refresh tokens for that user. A user with an active session continues with the old email in the token 'sub' claim until re-login. Non-blocking, but should be documented.",
+    "server.py request_plan_change 'instant free' path does NOT invalidate any existing active paid license state before overwriting — it simply sets license={plan:'free',active:true}. That's the intended UX, but there's no history/audit of what the previous plan was besides the plan_requests row. Fine as-is.",
+    "server.py admin_send_reset raises 502 on failure but the underlying _create_and_send_reset does not distinguish 'no email provider configured' from a real error. Consider explicit status when in fallback mode."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter5_features.py (new — 11 tests, all pass)"
+  ],
+  "success_rate": {"backend": "11/11 (100%)", "frontend": "100% of tested flows (admin edit user, admin rename company, plans current+instant-free+paid-popup, bear loader ~4s on Branding + API, login progress overlay)"},
+  "test_credentials": "Admin admin@claracampaigns.com / Admin123! (TOTP UPC5QPTQXSSHNMXXCMSUNFBDBFPBSTEQ) and non-admin onboard_test@clara.nl / Onboard123! (TOTP IYUNR6JWDOD4VR2KLD73NWKCNGJ4TJ7Q).",
+  "seed_data_creation": "test_iter5_features.py creates one throwaway registered user (test_test_disposable_<hex>@example.com) that it deletes via DELETE /api/admin/users/{id}. It also renames the first company in /admin/companies and restores the original name afterwards. It mutates the onboard_test user's name (UITEST_ prefix applied by UI test) and license (set to free by instant-free test) — these changes persist and are the expected end state of the iteration.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Iter5 features working. Non-admin onboard_test@clara.nl is currently on plan=free (instant-downgrade left it there). Admin walkthrough popover blocks pointer clicks on the users table on first /admin visit — dismiss with Escape or click the walkthrough Close button before interacting. Company #1 in /admin/companies may be renamed to 'UITEST_TEST_UI_Brand' from Playwright rename test (backend test restores its own rename). BearLoader gate is enforced client-side (~4s) via useLoadingGate; wait for [data-testid=bear-loader] to detach before asserting page content.",
+  "rca of the issue": "N/A — all iteration 5 acceptance criteria met."
+}

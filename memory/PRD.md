@@ -56,5 +56,12 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 
 ## Backlog / Remaining (updated)
 - P1: Login activity digest (what happened while logged out).
-- P1: Batch C — public subscription API + hosted subscribe form (campaigns.koodh.com) + categories/segments; "API connected" checkmark; target categories when sending.
-- P0 (ops): Provide Azure keys to leave SIMULATION mode.
+- P0 (ops): Provide Azure keys to leave SIMULATION mode for NEWSLETTER sending (MS Graph delegated OAuth). System emails already send via M365 SMTP.
+
+## Changelog — 2026-09-23 (Iteration 5)
+- Loading UX: all full-page/section loaders replaced by a full-screen "Clara bear" overlay (BearLoader) with a subtly animated koodh bear + rotating English newsletter tips (lib/tips.js). Kept visible for a MINIMUM ~4s via lib/useLoadingGate.js (Branding, ApiAccess, Analytics, SubscribePage, Contacts CSV import). ProgressOverlay (login/create/send) also shows the bear + rotating tip; Login shows the overlay for its full duration before redirect.
+- Admin — Users: edit name/email/role (PATCH /api/admin/users/{id}), delete user with cascade (DELETE /api/admin/users/{id}), send password-reset link to the user (POST /api/admin/users/{id}/send-reset). Admin cannot demote/delete self (400). FIXED: GET /api/admin/users decorator was glued to a comment and never registered — now works.
+- Admin — Companies: rename (PATCH /api/admin/companies/{id}).
+- Plans: current plan highlighted (ring + "Current plan" badge); switching to Free is INSTANT (POST /api/plan/request {plan:'free'} → license {plan:'free',active:true}); paid plans still open the quote/request flow.
+- System emails now send from clara@koodh.com via Microsoft 365 SMTP (email_util.smtp_ready/_send_via_smtp using aiosmtplib, smtp.office365.com:587 STARTTLS). Falls back to Emergent managed email only if SMTP is not configured. Verified live: test send + admin/public reset all accepted by M365.
+- Tested: iteration_5.json — 11/11 backend, all frontend flows.
