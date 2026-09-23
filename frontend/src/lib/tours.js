@@ -73,7 +73,7 @@ export const TOURS = {
   "/integrations": [
     { popover: { title: "E-mail / SMTP", description: "Set up your own SMTP server to send real emails from your own address." } },
     { element: el("smtp-config-card"), popover: { title: "SMTP settings", description: "Enter your host, port, security, login and sender. Until it's set up, sends run safely in simulation mode (no real emails, tracking still works).", side: "bottom", align: "start" } },
-    { element: el("test-smtp-config"), popover: { title: "Test connection", description: "Check your SMTP credentials work before sending a real campaign.", side: "bottom", align: "start" } },
+    { element: el("test-smtp-config"), popover: { title: "Send test email", description: "Send yourself a test email to confirm your SMTP settings work before sending a real campaign.", side: "bottom", align: "start" } },
   ],
 
   "/settings": [

@@ -60,8 +60,8 @@ export default function Integrations() {
   const test = async () => {
     setTesting(true);
     try {
-      await api.post("/company/smtp/test");
-      toast.success("Connection successful! Your SMTP settings work.");
+      const { data } = await api.post("/company/smtp/test");
+      toast.success(`Test email sent to ${data.sent_to} — check your inbox!`);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     }
@@ -184,7 +184,7 @@ export default function Integrations() {
                   </button>
                   <button data-testid="test-smtp-config" onClick={test} disabled={testing || !cfg.configured}
                     className="inline-flex items-center gap-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium px-4 py-2.5 rounded-full transition-colors disabled:opacity-50">
-                    {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Test connection
+                    {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send test email
                   </button>
                   {cfg.configured && (
                     <button data-testid="delete-smtp-config" onClick={remove}
@@ -208,7 +208,7 @@ export default function Integrations() {
               { t: "Find your SMTP details", d: "Your email provider (e.g. Microsoft 365, Google Workspace, your hosting company) gives you an SMTP host, port and security type." },
               { t: "Enter host and port", d: "Usually port 587 with STARTTLS, or port 465 with SSL/TLS." },
               { t: "Username & password", d: "This is typically the full email address and its (app) password." },
-              { t: "Set the sender", d: "Enter the sender address and name your recipients will see. Save and click ‘Test connection’." },
+              { t: "Set the sender", d: "Enter the sender address and name your recipients will see. Save and click ‘Send test email’ to receive a test in your own inbox." },
             ].map((step, i) => (
               <li key={i} className="flex gap-3">
                 <div className="h-7 w-7 rounded-full bg-[#7380b6] text-white text-sm font-semibold flex items-center justify-center shrink-0">{i + 1}</div>

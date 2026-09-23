@@ -257,8 +257,7 @@ async def send_newsletter_via_smtp(*, cfg, subject, html, to_email, to_name=None
 
 
 async def smtp_test_connection(cfg):
-    """Verify SMTP credentials by connecting + logging in (no email sent).
-    Returns None on success, raises on failure."""
+    """Verify SMTP credentials by connecting + logging in (no email sent)."""
     security = (cfg.get("security") or "starttls").lower()
     use_tls = security in ("ssl", "tls")
     do_starttls = security == "starttls"
@@ -273,6 +272,32 @@ async def smtp_test_connection(cfg):
     finally:
         if smtp.is_connected:
             await smtp.quit()
+
+
+def smtp_test_email_html(workspace_name: str) -> str:
+    from html import escape
+    brand_row = clara_brand_header(on_dark=True)
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="background:#0f172a;padding:32px 0;font-family:Arial,Helvetica,sans-serif">'
+        '<tr><td align="center">'
+        '<table role="presentation" width="520" cellpadding="0" cellspacing="0" '
+        'style="background:#111827;border-radius:20px;overflow:hidden;max-width:520px">'
+        '<tr><td style="padding:32px 40px 4px">'
+        f'{brand_row}'
+        '<div style="font-size:24px;font-weight:700;color:#ffffff;margin-top:14px">Your SMTP works! 🎉</div>'
+        '</td></tr>'
+        '<tr><td style="padding:16px 40px 0;color:#cbd5e1;font-size:15px;line-height:1.6">'
+        f'<p style="margin:0 0 12px">This is a test email from <b style="color:#ffffff">{escape(workspace_name)}</b>.</p>'
+        '<p style="margin:0 0 24px">If you are reading this in your inbox, your SMTP server is configured '
+        'correctly and Clara Campaigns can send newsletters from your own address.</p></td></tr>'
+        '<tr><td style="padding:8px 40px 8px">'
+        '<span style="display:inline-block;background:#7380b6;color:#ffffff;'
+        'padding:12px 28px;border-radius:9999px;font-size:14px;font-weight:600">Connection verified</span></td></tr>'
+        '<tr><td style="padding:28px 40px 32px;color:#6b7280;font-size:12px">'
+        'Clara Campaigns · You received this because someone tested the SMTP settings for this workspace.'
+        '</td></tr></table></td></tr></table>'
+    )
 
 
 def personalize_html(html: str, track_id: str, backend_url: str, company: dict = None, public_base: str = None, unsub_url: str = None) -> str:

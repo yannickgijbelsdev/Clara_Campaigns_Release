@@ -876,11 +876,17 @@ async def test_company_smtp(s=Depends(scope)):
     cfg = _company_smtp_cfg(company)
     if not cfg:
         raise HTTPException(status_code=400, detail="Save your SMTP settings first (including a password).")
+    to = s["user"].get("email")
+    if not to:
+        raise HTTPException(status_code=400, detail="Your account has no email address to send the test to.")
+    html = email_util.smtp_test_email_html(company.get("name") or "your workspace")
     try:
-        await email_util.smtp_test_connection(cfg)
+        await email_util.send_newsletter_via_smtp(
+            cfg=cfg, subject="Clara Campaigns · SMTP test email",
+            html=html, to_email=to, to_name=s["user"].get("name"))
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"SMTP connection failed: {str(exc)[:200]}")
-    return {"ok": True}
+        raise HTTPException(status_code=400, detail=f"SMTP test failed: {str(exc)[:200]}")
+    return {"ok": True, "sent_to": to}
 
 
 
