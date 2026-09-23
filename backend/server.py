@@ -1280,11 +1280,20 @@ async def dashboard(s=Depends(scope)):
 
 app.include_router(api)
 
-app.add_middleware(
-    CORSMiddleware, allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-    allow_methods=["*"], allow_headers=["*"],
-)
+_cors_origins = os.environ.get("CORS_ORIGINS", "*").strip()
+if _cors_origins == "*":
+    # Reflect any origin so credentialed (withCredentials) cross-origin requests
+    # work — a literal "*" is rejected by browsers when credentials are allowed.
+    app.add_middleware(
+        CORSMiddleware, allow_credentials=True, allow_origin_regex=".*",
+        allow_methods=["*"], allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware, allow_credentials=True,
+        allow_origins=[o.strip() for o in _cors_origins.split(",") if o.strip()],
+        allow_methods=["*"], allow_headers=["*"],
+    )
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("clara")
