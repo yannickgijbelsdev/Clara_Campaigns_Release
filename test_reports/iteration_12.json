@@ -1,0 +1,31 @@
+{
+  "summary": "Tested new admin-only Azure app credentials feature (/api/admin/ms-config + /integrations UI). 12/12 pytest backend tests pass (auth 403 for non-admin, GET/PUT/DELETE, validation, secret encryption-at-rest via Mongo inspection, secret preservation on partial update, SMTP forgot-password regression). Frontend: admin sees ms-config-card, filling client_id/tenant/secret and clicking save-ms-config flips badge from 'Not configured' to 'Configured'. Non-admin does not see the card. Cleanup completed - db.app_settings ms_graph doc deleted.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/integrations Azure app credentials card", "issues": ["Save success toast was not detected via [role=status]/toast selectors after save; badge does flip to 'Configured' so the state update works. Consider verifying that a success toast actually renders (may be too quickly dismissed or missing test-id)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ms_config_admin.py",
+    "/app/test_reports/pytest/ms_config_results.xml"
+  ],
+  "action_items": [
+    "Optional: add a data-testid on the save success toast in Integrations.js (e.g. data-testid=ms-config-toast) for reliable test detection."
+  ],
+  "critical_code_review_comments": [
+    "Endpoint implementation is clean: encryption via MS.encrypt_secret, secret never returned, 400 for blank inputs, MS.set_creds refreshes runtime cache after PUT/DELETE.",
+    "GET returns tenant/client_id from env if DB unset - correct DB-first with env fallback per spec.",
+    "server.py is >1400 lines; consider splitting admin routes into a router module."
+  ],
+  "updated_files": ["/app/backend/tests/test_ms_config_admin.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (admin card + non-admin gate + save flow)"},
+  "test_credentials": "Admin: admin@claracampaigns.com/Admin123! TOTP UPC5QPTQXSSHNMXXCMSUNFBDBFPBSTEQ; Non-admin: onboard_test@clara.nl/Onboard123! TOTP IYUNR6JWDOD4VR2KLD73NWKCNGJ4TJ7Q",
+  "seed_data_creation": "No persistent seed data; test config was created and then deleted (DELETE /api/admin/ms-config). Verified db.app_settings ms_graph is absent after cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend test file /app/backend/tests/test_ms_config_admin.py is idempotent (autouse fixture cleans MS config before+after). UI login via form kept failing due to Sign in button not being type=submit and MFA input flow - workaround: get JWT via API and setItem('clara_token', token), then navigate. Use pyotp.TOTP(secret).now() for MFA codes.",
+  "rca of the issue": "N/A - no issues found."
+}

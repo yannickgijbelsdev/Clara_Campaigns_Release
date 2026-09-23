@@ -97,6 +97,11 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Requires a production REDEPLOY. On the fresh prod DB, yannick is created with mfa_enabled=false → first login shows the MFA setup QR.
 - Verified: iteration_11.json — 4/4 backend (login+MFA as admin, old password rejected, only-yannick seed, seed works without env vars).
 
+## Changelog — 2026-09-23 (Iteration 12) — Microsoft 365 keys via UI
+- Admins can now paste the Azure app registration keys (Client ID, Client Secret, Tenant ID) directly in the app: Integrations page → "Azure app credentials" card (admin-only). Previously the keys had to be set as backend env vars.
+- Backend: GET/PUT/DELETE /api/admin/ms-config; stored in db.app_settings {_id:'ms_graph'} with the secret Fernet-encrypted (TOKEN_ENCRYPTION_KEY); secret is never returned by the API. ms_graph reads creds from a runtime cache (DB first, env fallback), loaded at startup and refreshed on save. No redeploy needed — takes effect immediately.
+- Verified: iteration_12.json — 12/12 backend + frontend (auth gating, encryption-at-rest, secret preservation on partial update, validation, DELETE, SMTP regression).
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.

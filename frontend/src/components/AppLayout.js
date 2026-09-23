@@ -216,6 +216,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   const location = useLocation();
   const [mailbox, setMailbox] = useState(null);
   const [apiCfg, setApiCfg] = useState(null);
+  const [branding, setBranding] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
@@ -248,7 +249,15 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   useEffect(() => {
     api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
     api.get("/subscribe/settings").then((r) => setApiCfg(r.data)).catch(() => {});
+    api.get("/company/branding").then((r) => setBranding(r.data)).catch(() => {});
   }, []);
+
+  // A menu item shows a check when that area is correctly configured.
+  const setupOk = {
+    "/branding": !!branding?.has_logo,
+    "/developers": !!(apiCfg?.connected || apiCfg?.website),
+    "/integrations": !!mailbox?.connected,
+  };
 
   const NAV = user?.role === "admin"
     ? [...BASE_NAV, { to: "/admin", label: "Administration" }]
@@ -296,8 +305,14 @@ export default function AppLayout({ children, title, subtitle, actions }) {
                     <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full shadow-lg shadow-slate-900/25"
                       transition={{ type: "spring", stiffness: 400, damping: 34 }} />
                   )}
-                  <span className={`relative z-10 whitespace-nowrap ${active ? "text-white" : "text-slate-500"}`}>
+                  <span className={`relative z-10 whitespace-nowrap flex items-center gap-1.5 ${active ? "text-white" : "text-slate-500"}`}>
                     {label}
+                    {setupOk[to] && (
+                      <span data-testid={`nav-check-${to.slice(1)}`}
+                        className={`flex h-4 w-4 items-center justify-center rounded-full ${active ? "bg-emerald-400/90" : "bg-emerald-500"}`}>
+                        <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />
+                      </span>
+                    )}
                   </span>
                 </NavLink>
               );
@@ -322,8 +337,13 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         <nav className="xl:hidden flex items-center gap-1 px-4 pb-3 overflow-x-auto">
           {NAV.map(({ to, label }) => (
             <NavLink key={to} to={to}
-              className={({ isActive }) => `flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-slate-100"}`}>
+              className={({ isActive }) => `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-slate-100"}`}>
               {label}
+              {setupOk[to] && (
+                <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500">
+                  <Check className="h-2 w-2 text-white" strokeWidth={4} />
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
