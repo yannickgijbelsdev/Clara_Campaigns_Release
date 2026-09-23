@@ -33,7 +33,7 @@ export default function Dashboard() {
   );
 
   return (
-    <AppLayout title="Dashboard" subtitle="Your newsletter workspace at a glance">
+    <AppLayout>
       {/* Top floating row */}
       <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 22 }}

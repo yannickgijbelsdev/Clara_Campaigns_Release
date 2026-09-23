@@ -40,6 +40,14 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const { data } = await api.get("/auth/me");
+      setUser(data.user);
+      return data.user;
+    } catch { return null; }
+  };
+
   useEffect(() => {
     if (localStorage.getItem("clara_token")) loadMe();
     else { setUser(false); setReady(true); }
@@ -61,7 +69,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      user, ready, login, logout, setUser,
+      user, ready, login, logout, setUser, refreshUser,
       companies, activeCompany, setActiveCompany, loadCompanies,
     }}>
       {children}

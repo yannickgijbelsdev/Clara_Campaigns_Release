@@ -13,6 +13,7 @@ import io
 import csv
 import time
 import uuid
+import html as html_lib
 import secrets
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -24,9 +25,11 @@ import ms_graph as MS
 from models import (
     RegisterInput, LoginInput, MfaVerifyInput, ContactInput,
     CampaignInput, SendInput, ScheduleInput, CompanyInput,
-    ForgotInput, ResetInput, now_iso,
+    ForgotInput, ResetInput, MfaCodeInput, PasswordChangeInput,
+    BrandingInput, AdminCompaniesInput, now_iso,
 )
 import email_util
+import storage
 
 app = FastAPI(title="Clara Campaigns API")
 api = APIRouter(prefix="/api")
@@ -44,6 +47,8 @@ def clean(doc):
     doc["id"] = str(doc.pop("_id"))
     doc.pop("password_hash", None)
     doc.pop("totp_secret", None)
+    doc.pop("backup_codes", None)
+    doc.pop("mfa_pending_secret", None)
     return doc
 
 
@@ -73,16 +78,26 @@ async def send_quota(user):
             "limit": limit, "remaining": max(0, limit - used), "window_days": days}
 
 
+async def _can_access_company(user, company):
+    if not company:
+        return False
+    if user["role"] == "admin":
+        return True
+    return company.get("owner_id") == user["id"] or user["id"] in (company.get("member_ids") or [])
+
+
 async def scope(request: Request, user=Depends(A.get_current_user)):
     """Resolve the active company (workspace) for the request."""
     cid = request.headers.get("x-company-id")
     company = None
     if cid and ObjectId.is_valid(cid):
         company = await db.companies.find_one({"_id": ObjectId(cid)})
-        if company and user["role"] != "admin" and company.get("owner_id") != user["id"]:
+        if not await _can_access_company(user, company):
             company = None
     if not company:
         company = await db.companies.find_one({"owner_id": user["id"]})
+    if not company:
+        company = await db.companies.find_one({"member_ids": user["id"]})
     if not company:
         res = await db.companies.insert_one({
             "name": f"{user.get('name','My')} Workspace", "owner_id": user["id"], "created_at": now_iso(),
@@ -155,12 +170,112 @@ async def mfa_verify(data: MfaVerifyInput, response: Response):
     user = await db.users.find_one({"_id": oid(payload["sub"])})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
-    if not A.verify_totp(user["totp_secret"], data.code):
+    code = data.code.strip()
+    verified = A.verify_totp(user["totp_secret"], code)
+    if not verified:
+        # Fall back to one-time backup codes
+        for i, bc in enumerate(user.get("backup_codes", [])):
+            if not bc.get("used") and A.verify_password(code, bc["hash"]):
+                await db.users.update_one(
+                    {"_id": user["_id"]},
+                    {"$set": {f"backup_codes.{i}.used": True, f"backup_codes.{i}.used_at": now_iso()}})
+                verified = True
+                break
+    if not verified:
         raise HTTPException(status_code=401, detail="Invalid authentication code")
     if payload.get("setup") and not user.get("mfa_enabled"):
         await db.users.update_one({"_id": user["_id"]}, {"$set": {"mfa_enabled": True}})
         user["mfa_enabled"] = True
     return await _issue_session(user, response)
+
+
+# ============ ACCOUNT: password, avatar, MFA management ============
+@api.put("/auth/password")
+async def change_password(data: PasswordChangeInput, user=Depends(A.get_current_user)):
+    full = await db.users.find_one({"_id": oid(user["id"])})
+    if not A.verify_password(data.current_password, full["password_hash"]):
+        raise HTTPException(status_code=400, detail="Your current password is incorrect.")
+    if data.current_password == data.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from the current one.")
+    await db.users.update_one({"_id": full["_id"]},
+                              {"$set": {"password_hash": A.hash_password(data.new_password)}})
+    return {"ok": True}
+
+
+@api.post("/auth/avatar")
+async def upload_avatar(file: UploadFile = File(...), user=Depends(A.get_current_user)):
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please upload an image file.")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 5 MB).")
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in (file.filename or "") else "png").lower()
+    path = f"{storage.APP_NAME}/avatars/{user['id']}/{uuid.uuid4()}.{ext}"
+    try:
+        result = storage.put_object(path, data, file.content_type or "image/png")
+    except Exception as exc:
+        logger.error(f"avatar upload failed: {exc}")
+        raise HTTPException(status_code=502, detail="Upload failed. Please try again.")
+    version = int(time.time())
+    await db.users.update_one({"_id": oid(user["id"])},
+                              {"$set": {"avatar_path": result["path"],
+                                        "avatar_type": file.content_type or "image/png",
+                                        "avatar_version": version}})
+    return {"ok": True, "avatar_version": version}
+
+
+@api.get("/avatar/{user_id}")
+async def get_avatar(user_id: str):
+    try:
+        u = await db.users.find_one({"_id": oid(user_id)})
+    except Exception:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not u or not u.get("avatar_path"):
+        raise HTTPException(status_code=404, detail="No avatar")
+    content, ctype = storage.get_object(u["avatar_path"])
+    return FastResponse(content=content, media_type=u.get("avatar_type", ctype),
+                        headers={"Cache-Control": "public, max-age=60"})
+
+
+@api.post("/auth/mfa/backup-codes")
+async def regenerate_backup_codes(user=Depends(A.get_current_user)):
+    codes = A.generate_backup_codes(10)
+    await db.users.update_one({"_id": oid(user["id"])},
+                              {"$set": {"backup_codes": A.hash_backup_codes(codes)}})
+    return {"codes": codes}
+
+
+@api.get("/auth/mfa/backup-codes/status")
+async def backup_codes_status(user=Depends(A.get_current_user)):
+    full = await db.users.find_one({"_id": oid(user["id"])})
+    codes = full.get("backup_codes", [])
+    remaining = len([c for c in codes if not c.get("used")])
+    return {"generated": len(codes) > 0, "remaining": remaining, "total": len(codes)}
+
+
+@api.post("/auth/mfa/reset/start")
+async def mfa_reset_start(user=Depends(A.get_current_user)):
+    full = await db.users.find_one({"_id": oid(user["id"])})
+    secret = A.make_totp_secret()
+    await db.users.update_one({"_id": full["_id"]}, {"$set": {"mfa_pending_secret": secret}})
+    uri = A.totp_uri(secret, full["email"])
+    return {"secret": secret, "otpauth_url": uri, "qr": A.qr_data_url(uri)}
+
+
+@api.post("/auth/mfa/reset/confirm")
+async def mfa_reset_confirm(data: MfaCodeInput, user=Depends(A.get_current_user)):
+    full = await db.users.find_one({"_id": oid(user["id"])})
+    pending = full.get("mfa_pending_secret")
+    if not pending:
+        raise HTTPException(status_code=400, detail="Start MFA setup first.")
+    if not A.verify_totp(pending, data.code.strip()):
+        raise HTTPException(status_code=400, detail="Invalid authenticator code.")
+    codes = A.generate_backup_codes(10)
+    await db.users.update_one({"_id": full["_id"]}, {
+        "$set": {"totp_secret": pending, "mfa_enabled": True,
+                 "backup_codes": A.hash_backup_codes(codes)},
+        "$unset": {"mfa_pending_secret": ""}})
+    return {"ok": True, "codes": codes}
 
 
 @api.post("/auth/logout")
@@ -209,7 +324,10 @@ async def me(user=Depends(A.get_current_user)):
 # ============ COMPANIES (workspaces) ============
 @api.get("/companies")
 async def list_companies(user=Depends(A.get_current_user)):
-    q = {} if user["role"] == "admin" else {"owner_id": user["id"]}
+    if user["role"] == "admin":
+        q = {}
+    else:
+        q = {"$or": [{"owner_id": user["id"]}, {"member_ids": user["id"]}]}
     rows = await db.companies.find(q).sort("created_at", 1).to_list(1000)
     out = []
     for r in rows:
@@ -242,6 +360,77 @@ async def delete_company(company_id: str, user=Depends(A.get_current_user)):
     return {"ok": True}
 
 
+# ============ COMPANY BRANDING ============
+def _branding_out(company):
+    return {
+        "id": str(company["_id"]),
+        "name": company.get("name"),
+        "brand_primary": company.get("brand_primary") or "#E11D48",
+        "brand_accent": company.get("brand_accent") or "#0F172A",
+        "website": company.get("website") or "",
+        "logo_version": company.get("logo_version"),
+        "has_logo": bool(company.get("logo_path")),
+    }
+
+
+@api.get("/company/branding")
+async def get_branding(s=Depends(scope)):
+    return _branding_out(s["company"])
+
+
+@api.put("/company/branding")
+async def update_branding(data: BrandingInput, s=Depends(scope)):
+    upd = {}
+    if data.name is not None and data.name.strip():
+        upd["name"] = data.name.strip()[:160]
+    if data.brand_primary is not None:
+        upd["brand_primary"] = data.brand_primary
+    if data.brand_accent is not None:
+        upd["brand_accent"] = data.brand_accent
+    if data.website is not None:
+        upd["website"] = data.website.strip()
+    if upd:
+        await db.companies.update_one({"_id": s["company"]["_id"]}, {"$set": upd})
+    await db.users.update_one({"_id": oid(s["user"]["id"])}, {"$set": {"onboarded": True}})
+    company = await db.companies.find_one({"_id": s["company"]["_id"]})
+    return _branding_out(company)
+
+
+@api.post("/company/logo")
+async def upload_company_logo(file: UploadFile = File(...), s=Depends(scope)):
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please upload an image file.")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 5 MB).")
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in (file.filename or "") else "png").lower()
+    path = f"{storage.APP_NAME}/logos/{s['company_id']}/{uuid.uuid4()}.{ext}"
+    try:
+        result = storage.put_object(path, data, file.content_type or "image/png")
+    except Exception as exc:
+        logger.error(f"logo upload failed: {exc}")
+        raise HTTPException(status_code=502, detail="Upload failed. Please try again.")
+    version = int(time.time())
+    await db.companies.update_one({"_id": s["company"]["_id"]},
+                                  {"$set": {"logo_path": result["path"],
+                                            "logo_type": file.content_type or "image/png",
+                                            "logo_version": version}})
+    return {"ok": True, "logo_version": version}
+
+
+@api.get("/company/{company_id}/logo")
+async def get_company_logo(company_id: str):
+    try:
+        c = await db.companies.find_one({"_id": oid(company_id)})
+    except Exception:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not c or not c.get("logo_path"):
+        raise HTTPException(status_code=404, detail="No logo")
+    content, ctype = storage.get_object(c["logo_path"])
+    return FastResponse(content=content, media_type=c.get("logo_type", ctype),
+                        headers={"Cache-Control": "public, max-age=60"})
+
+
 # ============ ADMIN: users & licenses ============
 @api.get("/admin/users")
 async def admin_users(user=Depends(A.get_current_user)):
@@ -250,14 +439,44 @@ async def admin_users(user=Depends(A.get_current_user)):
     out = []
     for r in rows:
         rid = str(r["_id"])
+        member_of = await db.companies.find({"member_ids": rid}).to_list(1000)
         out.append({
             "id": rid, "email": r["email"], "name": r.get("name"),
             "role": r.get("role", "user"), "mfa_enabled": r.get("mfa_enabled", False),
             "license": r.get("license", {"plan": "free", "active": False}),
             "created_at": r.get("created_at"),
             "companies": await db.companies.count_documents({"owner_id": rid}),
+            "member_of": [str(c["_id"]) for c in member_of],
         })
     return out
+
+
+@api.get("/admin/companies")
+async def admin_companies(user=Depends(A.get_current_user)):
+    require_admin(user)
+    rows = await db.companies.find({}).sort("created_at", 1).to_list(2000)
+    return [{"id": str(c["_id"]), "name": c.get("name"), "owner_id": c.get("owner_id"),
+             "members": len(c.get("member_ids") or [])} for c in rows]
+
+
+@api.patch("/admin/users/{user_id}/companies")
+async def admin_set_companies(user_id: str, data: AdminCompaniesInput, user=Depends(A.get_current_user)):
+    require_admin(user)
+    target = await db.users.find_one({"_id": oid(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    selected = set(data.company_ids)
+    all_companies = await db.companies.find({}).to_list(2000)
+    for c in all_companies:
+        cid = str(c["_id"])
+        # never touch companies this user owns
+        if c.get("owner_id") == user_id:
+            continue
+        if cid in selected:
+            await db.companies.update_one({"_id": c["_id"]}, {"$addToSet": {"member_ids": user_id}})
+        else:
+            await db.companies.update_one({"_id": c["_id"]}, {"$pull": {"member_ids": user_id}})
+    return {"ok": True, "company_ids": list(selected)}
 
 
 @api.patch("/admin/users/{user_id}/license")
@@ -336,7 +555,7 @@ async def create_contact(data: ContactInput, s=Depends(scope)):
     if await db.contacts.find_one({"company_id": s["company_id"], "email": email}):
         raise HTTPException(status_code=400, detail="Contact already exists")
     doc = {**data.model_dump(), "email": email, "company_id": s["company_id"],
-           "user_id": s["user"]["id"], "created_at": now_iso()}
+           "user_id": s["user"]["id"], "status": "subscribed", "created_at": now_iso()}
     res = await db.contacts.insert_one(doc)
     doc["_id"] = res.inserted_id
     return clean(doc)
@@ -402,7 +621,7 @@ async def import_contacts(file: UploadFile = File(...), s=Depends(scope)):
             "last_name": (find_key(row, "last_name", "lastname", "last name", "achternaam") or "").strip(),
             "company": (find_key(row, "company", "bedrijf", "organization") or "").strip(),
             "tags": [t.strip() for t in tags_raw.split(",") if t.strip()],
-            "created_at": now_iso(),
+            "status": "subscribed", "created_at": now_iso(),
         })
         imported += 1
     return {"imported": imported, "skipped": skipped}
@@ -458,9 +677,23 @@ async def delete_campaign(campaign_id: str, s=Depends(scope)):
     return {"ok": True}
 
 
-async def _run_send(campaign, contacts, user_id, company_id, real, token, sender):
+async def _run_send(campaign, contacts, user_id, company_id, real, token, sender, company=None):
     backend = os.environ["BACKEND_URL"]
+    public_base = os.environ.get("PUBLIC_BASE_URL") or backend
     cid = str(campaign["_id"])
+    # Prepare optional logo attachment for real sends
+    attachments = None
+    if real and company and company.get("logo_path"):
+        try:
+            content, ctype = MS_storage_logo(company)
+            import base64 as _b64
+            ext = "png"
+            if "jpeg" in ctype or "jpg" in ctype:
+                ext = "jpg"
+            attachments = [{"name": f"logo.{ext}", "content_type": ctype,
+                            "content_b64": _b64.b64encode(content).decode()}]
+        except Exception as exc:
+            logger.error(f"logo attachment failed: {exc}")
     for ct in contacts:
         track_id = uuid.uuid4().hex
         delivery = {
@@ -471,10 +704,10 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
             "clicked_links": [], "status": "sending", "simulated": not real, "created_at": now_iso(),
         }
         await db.deliveries.insert_one(delivery)
-        html = MS.personalize_html(campaign.get("html", ""), track_id, backend)
+        html = MS.personalize_html(campaign.get("html", ""), track_id, backend, company, public_base)
         try:
             if real:
-                await MS.send_mail(token, sender, campaign.get("subject", ""), html, ct["email"], delivery["name"])
+                await MS.send_mail(token, sender, campaign.get("subject", ""), html, ct["email"], delivery["name"], attachments)
                 await asyncio.sleep(1.0)
             await db.deliveries.update_one({"track_id": track_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
         except Exception as exc:
@@ -482,8 +715,12 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sent", "sent_at": now_iso()}})
 
 
+def MS_storage_logo(company):
+    return storage.get_object(company["logo_path"])
+
+
 async def _start_send(campaign, company_id, contact_ids, user):
-    q = {"company_id": company_id}
+    q = {"company_id": company_id, "status": {"$ne": "unsubscribed"}}
     if contact_ids:
         q["_id"] = {"$in": [oid(c) for c in contact_ids]}
     contacts = await db.contacts.find(q).to_list(10000)
@@ -493,11 +730,12 @@ async def _start_send(campaign, company_id, contact_ids, user):
     real = bool(token)
     row = await db.mailboxes.find_one({"user_id": user["id"]})
     sender = row.get("email") if row else user["email"]
+    company = await db.companies.find_one({"_id": oid(company_id)})
     await db.deliveries.delete_many({"campaign_id": str(campaign["_id"])})
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sending"}})
     await db.send_events.insert_one({"user_id": user["id"], "company_id": company_id,
                                      "campaign_id": str(campaign["_id"]), "ts": now_iso()})
-    asyncio.create_task(_run_send(campaign, contacts, user["id"], company_id, real, token, sender))
+    asyncio.create_task(_run_send(campaign, contacts, user["id"], company_id, real, token, sender, company))
     return {"ok": True, "recipients": len(contacts), "mode": "office365" if real else "simulation"}
 
 
@@ -608,12 +846,43 @@ async def track_click(track_id: str, u: str = Query("")):
     return RedirectResponse(u or os.environ["FRONTEND_URL"])
 
 
+@api.get("/unsubscribe/{track_id}")
+async def unsubscribe(track_id: str):
+    d = await db.deliveries.find_one({"track_id": track_id})
+    company_name = "this sender"
+    already = False
+    if d:
+        contact = await db.contacts.find_one({"_id": oid(d["contact_id"])}) if d.get("contact_id") else None
+        comp = await db.companies.find_one({"_id": oid(d["company_id"])}) if d.get("company_id") else None
+        if comp:
+            company_name = comp.get("name") or company_name
+        if contact:
+            already = contact.get("status") == "unsubscribed"
+            if not already:
+                await db.contacts.update_one({"_id": contact["_id"]},
+                    {"$set": {"status": "unsubscribed", "unsubscribed_at": now_iso()}})
+        await db.deliveries.update_one({"track_id": track_id},
+            {"$set": {"unsubscribed": True, "unsubscribed_at": now_iso()}})
+    msg = ("You were already unsubscribed." if already
+           else f"You've been unsubscribed from {html_lib.escape(company_name)}.")
+    page = f"""<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/><title>Unsubscribed</title></head>
+<body style="margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;">
+<div style="max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 10px 40px rgba(15,23,42,0.08);">
+<div style="width:56px;height:56px;border-radius:16px;background:#FEE2E2;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:26px;">✉️</div>
+<h1 style="font-size:20px;color:#0F172A;margin:0 0 8px;">You're unsubscribed</h1>
+<p style="font-size:14px;color:#64748B;line-height:1.6;margin:0;">{msg}<br/>You will no longer receive these newsletters.</p>
+</div></body></html>"""
+    return FastResponse(content=page, media_type="text/html")
+
+
 # ============ DASHBOARD ============
 @api.get("/dashboard")
 async def dashboard(s=Depends(scope)):
     cid = s["company_id"]
     total_campaigns = await db.campaigns.count_documents({"company_id": cid})
-    total_contacts = await db.contacts.count_documents({"company_id": cid})
+    total_contacts = await db.contacts.count_documents({"company_id": cid, "status": {"$ne": "unsubscribed"}})
+    total_unsubscribed = await db.contacts.count_documents({"company_id": cid, "status": "unsubscribed"})
     deliveries = await db.deliveries.find({"company_id": cid}).to_list(20000)
     sent = len([d for d in deliveries if d.get("status") == "sent"])
     opened = len([d for d in deliveries if d.get("opened")])
@@ -631,6 +900,7 @@ async def dashboard(s=Depends(scope)):
         })
     return {
         "total_campaigns": total_campaigns, "total_contacts": total_contacts,
+        "total_unsubscribed": total_unsubscribed,
         "total_sent": sent, "total_opened": opened, "total_clicked": clicked,
         "open_rate": round(opened / sent * 100, 1) if sent else 0,
         "click_rate": round(clicked / sent * 100, 1) if sent else 0,
@@ -660,13 +930,13 @@ async def _seed_admin(email_env, pw_env):
         res = await db.users.insert_one({
             "email": email, "name": email.split("@")[0].replace(".", " ").title(),
             "password_hash": A.hash_password(pw), "totp_secret": A.make_totp_secret(),
-            "mfa_enabled": False, "role": "admin",
+            "mfa_enabled": False, "role": "admin", "onboarded": True,
             "license": {"plan": "enterprise", "active": True}, "created_at": now_iso(),
         })
         await db.companies.insert_one({"name": "Clara HQ", "owner_id": str(res.inserted_id), "created_at": now_iso()})
     else:
         await db.users.update_one({"email": email}, {"$set": {"role": "admin",
-            "password_hash": A.hash_password(pw),
+            "password_hash": A.hash_password(pw), "onboarded": True,
             "license": {"plan": "enterprise", "active": True}}})
 
 
@@ -701,6 +971,11 @@ async def _scheduler_loop():
 
 @app.on_event("startup")
 async def startup():
+    try:
+        storage.init_storage()
+        logger.info("Object storage initialized")
+    except Exception as exc:
+        logger.error(f"storage init failed: {exc}")
     await db.users.create_index("email", unique=True)
     await db.contacts.create_index([("company_id", 1), ("email", 1)])
     await db.deliveries.create_index("track_id", unique=True)

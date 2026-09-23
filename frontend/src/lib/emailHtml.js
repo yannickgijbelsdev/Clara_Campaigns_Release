@@ -64,7 +64,6 @@ export function generateHtml(blocks, opts = {}) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
 ${rows}
 </table>
-<div style="font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#94A3B8;padding:18px 0;">Sent with Clara Campaigns</div>
 </td></tr>
 </table>
 </body></html>`;

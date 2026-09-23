@@ -4,17 +4,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { Logo } from "@/components/Logo";
+import GlobalSearch from "@/components/GlobalSearch";
+import Onboarding from "@/components/Onboarding";
 import { toast } from "sonner";
 import {
-  LogOut, AlertCircle, ChevronDown, Plus, Check, X, Globe, Gem, Lock, Search,
+  LogOut, AlertCircle, ChevronDown, Plus, Check, X, Globe, Gem, Lock, Search, ShieldCheck,
 } from "lucide-react";
+
+export const avatarUrl = (u) =>
+  u?.avatar_version ? `${process.env.REACT_APP_BACKEND_URL}/api/avatar/${u.id}?v=${u.avatar_version}` : null;
 
 const BASE_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/campaigns", label: "Campaigns" },
   { to: "/contacts", label: "Contacts" },
+  { to: "/branding", label: "Branding" },
   { to: "/integrations", label: "Microsoft 365" },
-  { to: "/settings", label: "Security" },
 ];
 
 function WorkspaceSwitcher() {
@@ -103,31 +108,101 @@ function WorkspaceSwitcher() {
   );
 }
 
+function UserMenu() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+  const av = avatarUrl(user);
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const Avatar = ({ size = "h-9 w-9" }) => av ? (
+    <img src={av} alt="" className={`${size} rounded-full object-cover shadow-sm`} />
+  ) : (
+    <div className={`${size} rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm shadow-rose-600/20`}>
+      {(user?.name || "U").slice(0, 1).toUpperCase()}
+    </div>
+  );
+
+  return (
+    <div className="relative" ref={ref}>
+      <button data-testid="user-menu-btn" onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 rounded-full pr-1.5 hover:bg-slate-100/70 clara-trans py-1 pl-1">
+        <Avatar />
+        <ChevronDown className={`h-4 w-4 text-slate-400 clara-trans ${open ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.15 }}
+            className="absolute right-0 mt-2 w-60 bg-white rounded-2xl clara-soft shadow-xl shadow-slate-900/10 p-2 z-50">
+            <div className="flex items-center gap-3 px-2 py-2.5">
+              <Avatar size="h-10 w-10" />
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-800 truncate">{user?.name}</div>
+                <div className="text-[11px] text-slate-400 truncate">{user?.email}</div>
+              </div>
+            </div>
+            <div className="border-t border-slate-100 my-1" />
+            <button data-testid="menu-account" onClick={() => { setOpen(false); navigate("/settings"); }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-slate-50 text-left text-sm text-slate-700 clara-trans">
+              <ShieldCheck className="h-4 w-4 text-slate-400" /> Account &amp; Security
+            </button>
+            <button data-testid="logout-btn" onClick={logout}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-rose-50 text-left text-sm text-rose-600 clara-trans">
+              <LogOut className="h-4 w-4" /> Sign out
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function AppLayout({ children, title, subtitle, actions }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mailbox, setMailbox] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     document.title = title ? `Clara Campaigns | ${title}` : "Clara Campaigns";
   }, [title]);
 
   useEffect(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  useEffect(() => {
     api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
   }, []);
 
   const NAV = user?.role === "admin"
-    ? [...BASE_NAV, { to: "/admin", label: "<" }]
+    ? [...BASE_NAV, { to: "/admin", label: "Administration" }]
     : BASE_NAV;
 
   return (
     <div className="min-h-screen bg-[#F5F6F8]">
+      {user && user.role !== "admin" && user.onboarded !== true && <Onboarding />}
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <header className="sticky top-0 z-30 bg-[#F5F6F8]/90 backdrop-blur-xl">
-        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-4">
+        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-3">
           <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
-          <div className="h-5 w-px bg-slate-200/60" />
-          <div className="hidden sm:flex items-center gap-1.5 mr-1">
+          <div className="hidden sm:block h-5 w-px bg-slate-200/60" />
+          <div className="hidden xl:flex items-center gap-1.5 mr-1">
             <div className="relative group" data-testid="plan-chip">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 clara-trans hover:bg-amber-100 cursor-default">
                 <Gem className="h-[17px] w-[17px]" />
@@ -147,17 +222,17 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           </div>
           <WorkspaceSwitcher />
 
-          <nav className="hidden md:flex items-center gap-1 ml-3 flex-1">
+          <nav className="hidden xl:flex items-center gap-0.5 ml-3 flex-1">
             {NAV.map(({ to, label }) => {
               const active = location.pathname === to || location.pathname.startsWith(to + "/");
               return (
                 <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
-                  className="relative flex items-center px-4 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900">
+                  className="relative flex items-center px-3.5 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900 whitespace-nowrap">
                   {active && (
                     <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full shadow-lg shadow-slate-900/25"
                       transition={{ type: "spring", stiffness: 400, damping: 34 }} />
                   )}
-                  <span className={`relative z-10 ${active ? "text-white" : "text-slate-500"}`}>
+                  <span className={`relative z-10 whitespace-nowrap ${active ? "text-white" : "text-slate-500"}`}>
                     {label}
                   </span>
                 </NavLink>
@@ -166,25 +241,17 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           </nav>
 
           <div className="flex items-center gap-3 ml-auto">
-            <button onClick={() => navigate("/campaigns")} title="Search campaigns"
+            <button data-testid="global-search-btn" onClick={() => setSearchOpen(true)} title="Search (⌘K)"
               className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 clara-trans">
               <Search className="h-[18px] w-[18px]" />
             </button>
-            <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200/60">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm shadow-rose-600/20">
-                {(user?.name || "U").slice(0, 1).toUpperCase()}
-              </div>
-              <div className="hidden lg:block leading-tight">
-                <div className="text-sm text-slate-800 font-medium">{user?.name}</div>
-                <div className="text-[11px] text-slate-400">{user?.role === "admin" ? "Administrator" : "Member"}</div>
-              </div>
-              <button data-testid="logout-btn" onClick={logout} title="Sign out"
-                className="text-slate-400 hover:text-rose-600 transition-colors ml-1"><LogOut className="h-[18px] w-[18px]" /></button>
+            <div className="pl-3 border-l border-slate-200/60">
+              <UserMenu />
             </div>
           </div>
         </div>
 
-        <nav className="md:hidden flex items-center gap-1 px-4 pb-3 overflow-x-auto">
+        <nav className="xl:hidden flex items-center gap-1 px-4 pb-3 overflow-x-auto">
           {NAV.map(({ to, label }) => (
             <NavLink key={to} to={to}
               className={({ isActive }) => `flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-slate-100"}`}>
@@ -197,21 +264,29 @@ export default function AppLayout({ children, title, subtitle, actions }) {
       <motion.main key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }} className="max-w-[1400px] mx-auto px-6 py-8">
         {mailbox && !mailbox.connected && location.pathname !== "/integrations" && (
-          <div data-testid="simulation-banner" className="mb-6 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-            <div className="text-sm text-amber-800 flex-1">
-              <b>Microsoft 365 is not connected.</b> Campaigns are sent in <b>Simulation Mode</b> — no real emails are delivered (tracking &amp; analytics still work).
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+            data-testid="simulation-banner" className="mb-6 flex items-center gap-4 bg-white/70 backdrop-blur-md rounded-2xl clara-soft px-4 py-3.5 ring-1 ring-amber-100/70">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shrink-0">
+              <AlertCircle className="h-[18px] w-[18px]" />
+            </span>
+            <div className="text-sm text-slate-600 flex-1 leading-snug">
+              <b className="text-slate-900">Simulation mode active.</b> Microsoft 365 isn't connected yet — campaigns are delivered as a preview only. Tracking &amp; analytics still work.
             </div>
-            <button onClick={() => navigate("/integrations")} className="text-sm font-medium text-amber-800 underline whitespace-nowrap">Connect</button>
+            <button onClick={() => navigate("/integrations")}
+              className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-full px-4 py-2 clara-trans">
+              Connect
+            </button>
+          </motion.div>
+        )}
+        {(title || subtitle || actions) && (
+          <div className="flex items-start justify-between mb-7 gap-4 flex-wrap">
+            <div>
+              {title && <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">{title}</h1>}
+              {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
+            </div>
+            <div className="flex items-center gap-2">{actions}</div>
           </div>
         )}
-        <div className="flex items-start justify-between mb-7 gap-4 flex-wrap">
-          <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
-            {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
-          </div>
-          <div className="flex items-center gap-2">{actions}</div>
-        </div>
         {children}
       </motion.main>
     </div>

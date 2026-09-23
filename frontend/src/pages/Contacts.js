@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { toast } from "sonner";
 import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History } from "lucide-react";
 
 export default function Contacts() {
+  const [searchParams] = useSearchParams();
   const [contacts, setContacts] = useState([]);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(searchParams.get("q") || "");
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [form, setForm] = useState({ email: "", first_name: "", last_name: "", company: "", tags: "" });
   const fileRef = useRef();
   const [historyView, setHistoryView] = useState(null); // { contact, items }
+  const [group, setGroup] = useState("all"); // all | subscribed | unsubscribed
 
   const load = () => api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -84,9 +87,15 @@ export default function Contacts() {
     }
   };
 
-  const filtered = contacts.filter((c) =>
-    [c.email, c.first_name, c.last_name, c.company].join(" ").toLowerCase().includes(q.toLowerCase())
-  );
+  const isUnsub = (c) => c.status === "unsubscribed";
+  const subCount = contacts.filter((c) => !isUnsub(c)).length;
+  const unsubCount = contacts.filter(isUnsub).length;
+
+  const filtered = contacts.filter((c) => {
+    if (group === "subscribed" && isUnsub(c)) return false;
+    if (group === "unsubscribed" && !isUnsub(c)) return false;
+    return [c.email, c.first_name, c.last_name, c.company].join(" ").toLowerCase().includes(q.toLowerCase());
+  });
 
   const actions = (
     <div className="flex gap-2">
@@ -111,11 +120,19 @@ export default function Contacts() {
 
   return (
     <AppLayout title="Contacts" subtitle={`${contacts.length} recipient(s)`} actions={actions}>
-      <div className="mb-5">
-        <div className="relative">
+      <div className="mb-5 flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1 bg-slate-100 rounded-full p-1">
+          {[["all", "All", contacts.length], ["subscribed", "Subscribed", subCount], ["unsubscribed", "Unsubscribed", unsubCount]].map(([id, label, n]) => (
+            <button key={id} data-testid={`group-tab-${id}`} onClick={() => setGroup(id)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium clara-trans ${group === id ? "bg-white shadow-sm text-rose-600" : "text-slate-500 hover:text-slate-700"}`}>
+              {label} <span className={`text-xs ${group === id ? "text-rose-400" : "text-slate-400"}`}>{n}</span>
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input data-testid="contact-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search contacts…"
-            className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm w-full max-w-sm focus:ring-2 focus:ring-rose-500 outline-none" />
+            className="pl-9 pr-3 py-2 border border-slate-200 rounded-full text-sm w-full focus:ring-2 focus:ring-rose-500 outline-none" />
         </div>
       </div>
 
@@ -139,7 +156,12 @@ export default function Contacts() {
             <tbody className="divide-y divide-slate-100">
               {filtered.map((c) => (
                 <tr key={c.id} data-testid={`contact-row-${c.id}`} className="hover:bg-slate-50">
-                  <td className="px-5 py-3 text-slate-800">{c.email}</td>
+                  <td className="px-5 py-3 text-slate-800">
+                    <div className="flex items-center gap-2">
+                      {c.email}
+                      {isUnsub(c) && <span data-testid={`unsub-badge-${c.id}`} className="text-[11px] bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">Unsubscribed</span>}
+                    </div>
+                  </td>
                   <td className="px-5 py-3 text-slate-600">{`${c.first_name || ""} ${c.last_name || ""}`.trim() || "—"}</td>
                   <td className="px-5 py-3 text-slate-600 hidden md:table-cell">{c.company || "—"}</td>
                   <td className="px-5 py-3 hidden md:table-cell">

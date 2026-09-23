@@ -57,10 +57,12 @@ export default function Integrations() {
 
           <div className="p-6">
             {status?.configured === false && (
-              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-800">
-                  <b>Not configured yet.</b> The Azure App Registration keys (MS_CLIENT_ID / MS_CLIENT_SECRET / MS_TENANT) haven't been set. Without them, sending runs in simulation mode.
+              <div className="flex items-center gap-4 bg-amber-50/70 rounded-2xl clara-soft ring-1 ring-amber-100/70 p-4 mb-4">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shrink-0">
+                  <AlertTriangle className="h-[18px] w-[18px]" />
+                </span>
+                <div className="text-sm text-slate-600 leading-snug">
+                  <b className="text-slate-900">Not configured yet.</b> The Azure App Registration keys (<span className="font-mono text-xs bg-white/80 px-1.5 py-0.5 rounded text-amber-700">MS_CLIENT_ID</span> / <span className="font-mono text-xs bg-white/80 px-1.5 py-0.5 rounded text-amber-700">MS_CLIENT_SECRET</span> / <span className="font-mono text-xs bg-white/80 px-1.5 py-0.5 rounded text-amber-700">MS_TENANT</span>) haven't been set. Until then, sending runs in simulation mode.
                 </div>
               </div>
             )}

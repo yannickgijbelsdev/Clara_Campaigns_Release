@@ -57,6 +57,16 @@ def make_totp_secret() -> str:
     return pyotp.random_base32()
 
 
+def generate_backup_codes(n: int = 10) -> list:
+    """Return a list of human-friendly one-time backup codes (plaintext)."""
+    import secrets as _secrets
+    return [f"{_secrets.token_hex(2)}-{_secrets.token_hex(2)}-{_secrets.token_hex(2)}" for _ in range(n)]
+
+
+def hash_backup_codes(codes: list) -> list:
+    return [{"hash": hash_password(c), "used": False} for c in codes]
+
+
 def totp_uri(secret: str, email: str) -> str:
     return pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name=ISSUER)
 
@@ -91,6 +101,8 @@ async def get_current_user(request: Request) -> dict:
         user["id"] = str(user.pop("_id"))
         user.pop("password_hash", None)
         user.pop("totp_secret", None)
+        user.pop("backup_codes", None)
+        user.pop("mfa_pending_secret", None)
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")

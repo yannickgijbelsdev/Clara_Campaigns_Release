@@ -86,15 +86,20 @@ async def get_access_token(user_id: str):
     return result["access_token"]
 
 
-async def send_mail(token: str, sender: str, subject: str, html: str, to_email: str, to_name: str = None):
-    body = {
-        "message": {
-            "subject": subject,
-            "body": {"contentType": "HTML", "content": html},
-            "toRecipients": [{"emailAddress": {"address": to_email, **({"name": to_name} if to_name else {})}}],
-        },
-        "saveToSentItems": True,
+async def send_mail(token: str, sender: str, subject: str, html: str, to_email: str, to_name: str = None, attachments=None):
+    message = {
+        "subject": subject,
+        "body": {"contentType": "HTML", "content": html},
+        "toRecipients": [{"emailAddress": {"address": to_email, **({"name": to_name} if to_name else {})}}],
     }
+    if attachments:
+        message["attachments"] = [{
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            "name": a["name"],
+            "contentType": a.get("content_type", "application/octet-stream"),
+            "contentBytes": a["content_b64"],
+        } for a in attachments]
+    body = {"message": message, "saveToSentItems": True}
     async with httpx.AsyncClient(timeout=30) as c:
         r = await c.post(f"{GRAPH}/me/sendMail", headers={"Authorization": f"Bearer {token}"}, json=body)
         if r.status_code == 202:
@@ -102,8 +107,8 @@ async def send_mail(token: str, sender: str, subject: str, html: str, to_email: 
         raise RuntimeError(f"Graph {r.status_code}: {r.text[:300]}")
 
 
-def personalize_html(html: str, track_id: str, backend_url: str) -> str:
-    """Rewrite links for click tracking and inject an open-tracking pixel."""
+def personalize_html(html: str, track_id: str, backend_url: str, company: dict = None, public_base: str = None) -> str:
+    """Rewrite links for click tracking, inject open pixel and a branded footer."""
     def repl(m):
         quote_char = m.group(1)
         url = m.group(2)
@@ -113,10 +118,31 @@ def personalize_html(html: str, track_id: str, backend_url: str) -> str:
         return f"href={quote_char}{tracked}{quote_char}"
 
     html = re.sub(r'href=(["\'])(.*?)\1', repl, html, flags=re.IGNORECASE)
+
+    company = company or {}
+    public_base = public_base or "https://campaigns.koodh.com"
+    website = (company.get("website") or "").strip()
+    cid = str(company.get("_id")) if company.get("_id") else None
+    logo_img = ""
+    if company.get("logo_path") and cid:
+        logo_img = (f'<img src="{backend_url}/api/company/{cid}/logo" alt="{html_lib.escape(company.get("name",""))}" '
+                    f'width="120" style="max-width:120px;height:auto;display:inline-block;border:0;margin:0 auto 10px;" />')
+    website_link = (f'<a href="{website}" style="color:#94A3B8;text-decoration:none;">{html_lib.escape(website)}</a><br/>'
+                    if website else "")
+    unsub_url = f"{backend_url}/api/unsubscribe/{track_id}"
+    footer = (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+        '<td align="center" style="padding:22px 24px 8px;font-family:\'Segoe UI\',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">'
+        f'{logo_img}{website_link}'
+        f'<a href="{public_base}" style="color:#94A3B8;text-decoration:none;">Sent with Clara Campaigns</a><br/>'
+        f'<a href="{unsub_url}" style="color:#94A3B8;text-decoration:underline;">Unsubscribe from these emails</a>'
+        '</td></tr></table>'
+    )
     pixel = f'<img src="{backend_url}/api/track/open/{track_id}" width="1" height="1" alt="" style="display:none" />'
+    inject = footer + pixel
     if "</body>" in html.lower():
         idx = html.lower().rfind("</body>")
-        html = html[:idx] + pixel + html[idx:]
+        html = html[:idx] + inject + html[idx:]
     else:
-        html = html + pixel
+        html = html + inject
     return html

@@ -40,7 +40,16 @@ class LoginInput(BaseModel):
 
 class MfaVerifyInput(BaseModel):
     mfa_token: str
-    code: str = Field(min_length=6, max_length=6)
+    code: str = Field(min_length=6, max_length=64)
+
+
+class MfaCodeInput(BaseModel):
+    code: str = Field(min_length=6, max_length=64)
+
+
+class PasswordChangeInput(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=200)
 
 
 class ForgotInput(BaseModel):
@@ -78,6 +87,17 @@ class CampaignInput(BaseModel):
 
 class CompanyInput(BaseModel):
     name: str = Field(min_length=1, max_length=160)
+
+
+class BrandingInput(BaseModel):
+    name: Optional[str] = None
+    brand_primary: Optional[str] = None
+    brand_accent: Optional[str] = None
+    website: Optional[str] = None
+
+
+class AdminCompaniesInput(BaseModel):
+    company_ids: List[str] = []
 
 
 class SendInput(BaseModel):
