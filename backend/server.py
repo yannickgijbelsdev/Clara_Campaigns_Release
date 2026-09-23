@@ -1355,17 +1355,23 @@ async def startup():
         logger.info("Object storage initialized")
     except Exception as exc:
         logger.error(f"storage init failed: {exc}")
-    await db.users.create_index("email", unique=True)
-    await db.contacts.create_index([("company_id", 1), ("email", 1)])
-    await db.deliveries.create_index("track_id", unique=True)
-    await db.deliveries.create_index([("campaign_id", 1)])
-    await db.companies.create_index("owner_id")
-    await db.companies.create_index("api_key", unique=True, sparse=True)
-    await db.categories.create_index([("company_id", 1)])
-    await db.password_reset_tokens.create_index("expires_at")
-    await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
-    await _seed_admin("ADMIN_EMAIL", "ADMIN_PASSWORD")
-    await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD")
+    try:
+        await db.users.create_index("email", unique=True)
+        await db.contacts.create_index([("company_id", 1), ("email", 1)])
+        await db.deliveries.create_index("track_id", unique=True)
+        await db.deliveries.create_index([("campaign_id", 1)])
+        await db.companies.create_index("owner_id")
+        await db.companies.create_index("api_key", unique=True, sparse=True)
+        await db.categories.create_index([("company_id", 1)])
+        await db.password_reset_tokens.create_index("expires_at")
+        await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
+    except Exception as exc:
+        logger.error(f"index init failed (continuing): {exc}")
+    try:
+        await _seed_admin("ADMIN_EMAIL", "ADMIN_PASSWORD")
+        await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD")
+    except Exception as exc:
+        logger.error(f"admin seed failed (continuing): {exc}")
     asyncio.create_task(_scheduler_loop())
     logger.info("Clara Campaigns backend started")
 

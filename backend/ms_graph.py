@@ -13,7 +13,11 @@ GRAPH = "https://graph.microsoft.com/v1.0"
 AUTHORITY_BASE = "https://login.microsoftonline.com"
 CLARA_MARK = "https://koodh-clara.nbg1.your-objectstorage.com/assets/clara-mark.png"
 
-fernet = Fernet(os.environ["TOKEN_ENCRYPTION_KEY"].encode())
+def _get_fernet():
+    key = os.environ.get("TOKEN_ENCRYPTION_KEY")
+    if not key:
+        raise RuntimeError("TOKEN_ENCRYPTION_KEY is not configured")
+    return Fernet(key.encode())
 
 
 def is_configured() -> bool:
@@ -98,13 +102,13 @@ async def load_cache(user_id: str):
     row = await db.mailboxes.find_one({"user_id": user_id})
     cache = msal.SerializableTokenCache()
     if row and row.get("token_cache"):
-        cache.deserialize(fernet.decrypt(row["token_cache"].encode()).decode())
+        cache.deserialize(_get_fernet().decrypt(row["token_cache"].encode()).decode())
     return cache, row
 
 
 async def save_cache(user_id: str, cache, email=None):
     if cache.has_state_changed:
-        encrypted = fernet.encrypt(cache.serialize().encode()).decode()
+        encrypted = _get_fernet().encrypt(cache.serialize().encode()).decode()
         update = {"token_cache": encrypted, "updated_at": time.time()}
         if email:
             update["email"] = email
