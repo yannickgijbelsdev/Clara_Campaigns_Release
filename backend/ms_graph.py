@@ -11,6 +11,7 @@ from db import db
 SCOPES = ["User.Read", "Mail.Send"]
 GRAPH = "https://graph.microsoft.com/v1.0"
 AUTHORITY_BASE = "https://login.microsoftonline.com"
+CLARA_MARK = "https://koodh-clara.nbg1.your-objectstorage.com/assets/clara-mark.png"
 
 fernet = Fernet(os.environ["TOKEN_ENCRYPTION_KEY"].encode())
 
@@ -195,11 +196,17 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
         f'background:{company.get("brand_primary") or "#7380b6"};color:#ffffff;border-radius:9999px;'
         f'text-decoration:none;font-size:13px;font-weight:600;">Manage your preferences</a><br/>'
         if prefs_url else "")
+    clara_brand = (
+        f'<a href="{public_base}" style="text-decoration:none;color:#64748B;display:inline-block;margin:2px 0;">'
+        f'<img src="{CLARA_MARK}" width="16" height="16" alt="Clara Campaigns" '
+        f'style="vertical-align:middle;border:0;display:inline-block;margin-right:6px;width:16px;height:16px;" />'
+        f'<span style="vertical-align:middle;font-weight:700;color:#64748B;">Clara Campaigns</span></a>'
+    )
     footer = (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
         '<td align="center" style="padding:22px 24px 8px;font-family:\'Segoe UI\',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">'
         f'{logo_img}{prefs_btn}{website_link}'
-        f'<a href="{public_base}" style="color:#94A3B8;text-decoration:none;">Sent with Clara Campaigns</a><br/>'
+        f'<span style="color:#94A3B8;">Sent with </span>{clara_brand}<br/>'
         f'<a href="{unsub_url}" style="color:#94A3B8;text-decoration:underline;">Unsubscribe from these emails</a>'
         '</td></tr></table>'
     )
