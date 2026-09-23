@@ -1048,10 +1048,10 @@ def _apply_merge_tags(html: str, ct: dict) -> str:
     fn = (ct.get("first_name") or "").strip()
     ln = (ct.get("last_name") or "").strip()
     values = {
-        "first_name": fn,
-        "last_name": ln,
-        "email": ct.get("email", ""),
-        "name": (f"{fn} {ln}").strip(),
+        "first_name": html_lib.escape(fn),
+        "last_name": html_lib.escape(ln),
+        "email": html_lib.escape(ct.get("email", "")),
+        "name": html_lib.escape((f"{fn} {ln}").strip()),
     }
 
     def sub(m):

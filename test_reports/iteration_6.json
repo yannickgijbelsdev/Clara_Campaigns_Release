@@ -1,0 +1,19 @@
+{
+  "summary": "Iteration 6 — newsletter merge-tag personalization. Backend 10/10 pass: _apply_merge_tags unit tests (full sub, missing→empty, whitespace, case-insensitive, unknown-tag passthrough) plus end-to-end send in simulation mode with mixed contacts (named / missing-first / all-blank) — every recipient completes with status 'sent', no crashes on missing names. Regression PUT+send-plain still work. Frontend: TagInserter chips verified via screenshot (clicking + First name appends {{first_name}} to prop-text); SendModal warning [data-testid=personalization-warning] + [data-testid=missing-name-<id>] verified. Values are HTML-escaped before substitution.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Builder (first visit)", "issues": ["Guided-tour popover overlays the canvas; Escape dismisses it."]}
+    ]
+  },
+  "spec_vs_impl_note": "Merge tags use DOUBLE braces {{first_name}} consistently on both sides. Users insert via chips so they never type braces.",
+  "test_report_links": ["/app/backend/tests/test_iter6_personalization.py", "/app/test_reports/pytest/pytest_iter6.xml"],
+  "action_items": [],
+  "updated_files": ["/app/backend/tests/test_iter6_personalization.py", "server.py _apply_merge_tags (HTML-escaped values)"],
+  "success_rate": {"backend": "10/10 (100%)", "frontend": "chip insertion + send warning verified"},
+  "test_credentials": "admin@claracampaigns.com / Admin123! (TOTP UPC5QPTQXSSHNMXXCMSUNFBDBFPBSTEQ)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true
+}

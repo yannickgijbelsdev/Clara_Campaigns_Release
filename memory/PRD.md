@@ -65,3 +65,9 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Plans: current plan highlighted (ring + "Current plan" badge); switching to Free is INSTANT (POST /api/plan/request {plan:'free'} → license {plan:'free',active:true}); paid plans still open the quote/request flow.
 - System emails now send from clara@koodh.com via Microsoft 365 SMTP (email_util.smtp_ready/_send_via_smtp using aiosmtplib, smtp.office365.com:587 STARTTLS). Falls back to Emergent managed email only if SMTP is not configured. Verified live: test send + admin/public reset all accepted by M365.
 - Tested: iteration_5.json — 11/11 backend, all frontend flows.
+
+## Changelog — 2026-09-23 (Iteration 6)
+- Newsletter personalization / merge tags: in the builder, Title/Text/Button blocks have a "Personalize" chip row that inserts {{first_name}}, {{last_name}}, {{name}} (full name) and {{email}}. On send, server.py `_apply_merge_tags` replaces the tokens per recipient (values HTML-escaped); missing values become empty.
+- Send modal warning: if the newsletter uses a name tag and some target recipients have no first/last name filled in, a notice "Name can't be personalized for N contact(s)" lists exactly which contacts (by email) are affected (data-testid personalization-warning + missing-name-<id>). Hidden when no name tag is used or all recipients have names.
+- Reset email now carries the Clara header branding (logo mark + vertical divider + bold "Clara Campaigns"); logo hosted on public S3 (assets/clara-mark.png).
+- Tested: iteration_6.json — 10/10 backend; chip insertion + send warning verified via UI.
