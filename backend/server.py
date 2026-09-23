@@ -855,7 +855,11 @@ async def set_company_smtp(data: SmtpConfigInput, s=Depends(scope)):
         "from_email": str(data.from_email).strip(), "from_name": (data.from_name or "").strip(),
     }
     if data.password and data.password.strip():
-        update["password_enc"] = email_util.encrypt_secret(data.password.strip())
+        try:
+            update["password_enc"] = email_util.encrypt_secret(data.password.strip())
+        except Exception as exc:
+            logger.error(f"SMTP password encryption failed: {exc}")
+            raise HTTPException(status_code=500, detail="Could not securely store the password. Please contact support.")
     elif existing.get("password_enc"):
         update["password_enc"] = existing["password_enc"]
     else:
@@ -1377,7 +1381,6 @@ async def startup():
         await db.companies.create_index("api_key", unique=True, sparse=True)
         await db.categories.create_index([("company_id", 1)])
         await db.password_reset_tokens.create_index("expires_at")
-        await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
     except Exception as exc:
         logger.error(f"index init failed (continuing): {exc}")
     try:

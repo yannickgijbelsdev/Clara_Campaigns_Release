@@ -16,10 +16,18 @@ logger = logging.getLogger("clara.email")
 
 
 def _get_fernet():
+    import base64, hashlib
     key = os.environ.get("TOKEN_ENCRYPTION_KEY")
-    if not key:
-        raise RuntimeError("TOKEN_ENCRYPTION_KEY is not configured")
-    return Fernet(key.encode())
+    if key:
+        try:
+            return Fernet(key.encode())
+        except Exception:
+            logger.warning("TOKEN_ENCRYPTION_KEY is invalid; deriving key from JWT_SECRET instead")
+    seed = os.environ.get("JWT_SECRET")
+    if not seed:
+        raise RuntimeError("No TOKEN_ENCRYPTION_KEY or JWT_SECRET configured for encryption")
+    derived = base64.urlsafe_b64encode(hashlib.sha256(seed.encode()).digest())
+    return Fernet(derived)
 
 
 def encrypt_secret(value: str) -> str:
