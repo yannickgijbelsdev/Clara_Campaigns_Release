@@ -78,6 +78,16 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Password-reset email (reset_email_html) and plan-change-request email (server._plan_request_html) now both carry this branded logo header. CLARA_MARK asset hosted on public S3 (assets/clara-mark.png, HTTP 200). All templates pass _assert_safe_email.
 - Verified: iteration_8.json — 14/14 backend tests; logo present in reset, plan-change and newsletter footer; plan/request + forgot-password + admin send-reset all 200.
 
+## Changelog — 2026-09-23 (Iteration 9) — Production auth CORS fix
+- FIXED production login/registration failure ("Er ging iets mis, probeer opnieuw"). Root cause: CORSMiddleware returned wildcard `Access-Control-Allow-Origin: *` together with `allow_credentials=true` on actual responses, which browsers reject for credentialed (withCredentials:true) cross-origin requests. Preview worked because it is same-origin.
+- Fix (server.py ~L1283): when CORS_ORIGINS='*', use allow_origin_regex='.*' with allow_credentials=True so the caller Origin is reflected on both preflight and actual responses; explicit comma list still uses allow_origins.
+- Requires a production redeploy to take effect.
+- Verified: iteration_9.json — 8/8 backend (CORS reflection + register + first-login MFA + admin login + /auth/me).
+
+## Known deployment findings (backlog, not blocking auth)
+- Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
+- GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.
+
 ## Changelog — 2026-09-23 (Iteration 6b)
 - Merge-tag fallback: tokens now support {{first_name|there}} syntax — when the contact's value is empty the fallback text is used instead (server.py _apply_merge_tags, regex captures optional |fallback; values HTML-escaped).
 - Builder: the "Personalize" panel has a "Fallback when empty" input; chips insert {{key|fallback}} when a fallback is typed, otherwise {{key}}.
