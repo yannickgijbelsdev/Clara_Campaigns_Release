@@ -25,6 +25,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "", name: "" });
   const [mfa, setMfa] = useState({ token: "", code: "", setup: false, qr: "", secret: "" });
   const [welcome, setWelcome] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
 
   useEffect(() => {
     document.title = step === "mfa" ? "Clara Campaigns | Verification" : "Clara Campaigns | Sign in";
@@ -64,6 +65,21 @@ export default function Login() {
       const { data } = await api.post("/auth/mfa/verify", { mfa_token: mfa.token, code: mfa.code });
       await login(data.access_token, data.user);
       setWelcome(true);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitForgot = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post("/auth/forgot-password", { email: forgotEmail });
+      toast.success("If an account exists for that email, a reset link has been sent.");
+      setStep("credentials");
+      setForgotEmail("");
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     } finally {
@@ -113,6 +129,12 @@ export default function Login() {
                   {mode === "login" ? "Sign in" : "Register"}
                 </button>
               </form>
+              {mode === "login" && (
+                <div className="text-right mt-3">
+                  <button data-testid="forgot-password-link" onClick={() => setStep("forgot")}
+                    className="text-sm text-rose-600 font-medium hover:underline">Forgot password?</button>
+                </div>
+              )}
               <p className="text-sm text-slate-500 mt-6 text-center">
                 {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
                 <button data-testid="toggle-mode-btn" onClick={() => setMode(mode === "login" ? "register" : "login")}
@@ -120,6 +142,22 @@ export default function Login() {
                   {mode === "login" ? "Register" : "Sign in"}
                 </button>
               </p>
+            </>
+          ) : step === "forgot" ? (
+            <>
+              <button onClick={() => setStep("credentials")} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 mb-6">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              <h1 className="font-display text-2xl font-bold text-slate-900 mb-1">Reset password</h1>
+              <p className="text-sm text-slate-500 mb-6">Enter your email and we'll send you a secure reset link.</p>
+              <form onSubmit={submitForgot} className="space-y-4">
+                <Field label="Email" testid="forgot-email-input" type="email" value={forgotEmail}
+                  onChange={(v) => setForgotEmail(v)} placeholder="you@example.com" />
+                <button data-testid="send-reset-btn" disabled={loading}
+                  className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />} Send reset link
+                </button>
+              </form>
             </>
           ) : (
             <>

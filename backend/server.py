@@ -23,8 +23,10 @@ import auth as A
 import ms_graph as MS
 from models import (
     RegisterInput, LoginInput, MfaVerifyInput, ContactInput,
-    CampaignInput, SendInput, ScheduleInput, CompanyInput, now_iso,
+    CampaignInput, SendInput, ScheduleInput, CompanyInput,
+    ForgotInput, ResetInput, now_iso,
 )
+import email_util
 
 app = FastAPI(title="Clara Campaigns API")
 api = APIRouter(prefix="/api")
@@ -164,6 +166,36 @@ async def mfa_verify(data: MfaVerifyInput, response: Response):
 @api.post("/auth/logout")
 async def logout(response: Response, user=Depends(A.get_current_user)):
     response.delete_cookie("access_token", path="/")
+    return {"ok": True}
+
+
+@api.post("/auth/forgot-password")
+async def forgot_password(data: ForgotInput):
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email})
+    if user:
+        token = secrets.token_urlsafe(32)
+        expires = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        await db.password_reset_tokens.insert_one({
+            "token": token, "user_id": str(user["_id"]), "expires_at": expires, "used": False})
+        reset_url = f"{os.environ['FRONTEND_URL']}/reset-password?token={token}"
+        try:
+            await email_util.send_email(
+                to=email, subject="Reset your Clara Campaigns password",
+                html=email_util.reset_email_html(user.get("name", "there"), reset_url))
+        except Exception as exc:
+            logger.error(f"reset email failed: {exc}")
+    return {"ok": True}
+
+
+@api.post("/auth/reset-password")
+async def reset_password(data: ResetInput):
+    rec = await db.password_reset_tokens.find_one({"token": data.token})
+    if not rec or rec.get("used") or rec["expires_at"] < datetime.now(timezone.utc).isoformat():
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+    await db.users.update_one({"_id": oid(rec["user_id"])},
+                              {"$set": {"password_hash": A.hash_password(data.password)}})
+    await db.password_reset_tokens.update_one({"token": data.token}, {"$set": {"used": True}})
     return {"ok": True}
 
 
@@ -649,6 +681,7 @@ async def startup():
     await db.deliveries.create_index("track_id", unique=True)
     await db.deliveries.create_index([("campaign_id", 1)])
     await db.companies.create_index("owner_id")
+    await db.password_reset_tokens.create_index("expires_at")
     await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
     await _seed_admin("ADMIN_EMAIL", "ADMIN_PASSWORD")
     await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD")

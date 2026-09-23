@@ -11,6 +11,7 @@ import Integrations from "@/pages/Integrations";
 import Settings from "@/pages/Settings";
 import Analytics from "@/pages/Analytics";
 import Admin from "@/pages/Admin";
+import ResetPassword from "@/pages/ResetPassword";
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -36,6 +37,7 @@ function App() {
           <Toaster position="top-right" richColors />
           <Routes>
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
             <Route path="/campaigns" element={<Protected><Campaigns /></Protected>} />
             <Route path="/campaigns/new" element={<Protected><Builder /></Protected>} />

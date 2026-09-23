@@ -43,6 +43,15 @@ class MfaVerifyInput(BaseModel):
     code: str = Field(min_length=6, max_length=6)
 
 
+class ForgotInput(BaseModel):
+    email: EmailStr
+
+
+class ResetInput(BaseModel):
+    token: str
+    password: str = Field(min_length=6, max_length=200)
+
+
 # ---------- Contacts ----------
 class ContactInput(BaseModel):
     email: EmailStr

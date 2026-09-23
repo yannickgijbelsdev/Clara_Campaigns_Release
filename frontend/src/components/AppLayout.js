@@ -6,8 +6,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { toast } from "sonner";
 import {
-  LayoutDashboard, Send, Users, Plug, ShieldCheck, LogOut, ShieldAlert,
-  CheckCircle2, AlertCircle, ChevronDown, Plus, Building2, Check, X,
+  LogOut, CheckCircle2, AlertCircle, ChevronDown, Plus, Check, X, Layers,
 } from "lucide-react";
 
 const BASE_NAV = [
@@ -55,10 +54,8 @@ function WorkspaceSwitcher() {
   return (
     <div className="relative" ref={ref}>
       <button data-testid="workspace-switcher" onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors max-w-[220px]">
-        <span className="h-6 w-6 rounded-md bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
-          {(current?.name || "W").slice(0, 1).toUpperCase()}
-        </span>
+        className="flex items-center gap-2 pl-2.5 pr-2.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors max-w-[220px]">
+        <Layers className="h-4 w-4 text-slate-400 shrink-0" />
         <span className="text-sm font-medium text-slate-800 truncate">{current?.name || "Workspace"}</span>
         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -130,6 +127,9 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-4">
           <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
           <div className="h-6 w-px bg-slate-200" />
+          <span className="hidden lg:block text-sm text-slate-400 font-medium capitalize mr-1">
+            {(user?.license?.plan || "free")} plan
+          </span>
           <WorkspaceSwitcher />
           <div className="h-6 w-px bg-slate-200 hidden md:block" />
 
@@ -140,7 +140,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
                 <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
                   className="relative flex items-center px-3.5 py-2 rounded-full text-sm font-medium transition-colors">
                   {active && (
-                    <motion.span layoutId="nav-pill" className="absolute inset-0 bg-rose-600 rounded-full"
+                    <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }} />
                   )}
                   <span className={`relative z-10 ${active ? "text-white" : "text-slate-600"}`}>
@@ -154,7 +154,8 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           <div className="flex items-center gap-3 ml-auto">
             <div className={`hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${
               mailbox?.connected ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-              {mailbox?.connected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />} O365
+              {mailbox?.connected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+              {mailbox?.connected ? "Office 365" : "Simulation Mode"}
             </div>
             <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
               <div className="h-8 w-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-semibold text-sm">
@@ -173,7 +174,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         <nav className="md:hidden flex items-center gap-1 px-4 pb-3 overflow-x-auto">
           {NAV.map(({ to, label }) => (
             <NavLink key={to} to={to}
-              className={({ isActive }) => `flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-rose-600 text-white" : "text-slate-600 bg-slate-100"}`}>
+              className={({ isActive }) => `flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-slate-100"}`}>
               {label}
             </NavLink>
           ))}
@@ -182,6 +183,15 @@ export default function AppLayout({ children, title, subtitle, actions }) {
 
       <motion.main key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }} className="max-w-[1400px] mx-auto px-6 py-8">
+        {mailbox && !mailbox.connected && location.pathname !== "/integrations" && (
+          <div data-testid="simulation-banner" className="mb-6 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+            <div className="text-sm text-amber-800 flex-1">
+              <b>Microsoft 365 is not connected.</b> Campaigns are sent in <b>Simulation Mode</b> — no real emails are delivered (tracking &amp; analytics still work).
+            </div>
+            <button onClick={() => navigate("/integrations")} className="text-sm font-medium text-amber-800 underline whitespace-nowrap">Connect</button>
+          </div>
+        )}
         <div className="flex items-start justify-between mb-7 gap-4 flex-wrap">
           <div>
             <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
