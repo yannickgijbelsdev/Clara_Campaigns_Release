@@ -16,10 +16,30 @@ export default function Contacts() {
   const fileRef = useRef();
   const [historyView, setHistoryView] = useState(null); // { contact, items }
   const [group, setGroup] = useState("all"); // all | subscribed | unsubscribed
+  const [catMap, setCatMap] = useState({});
   const confirm = useConfirm();
 
   const load = () => api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    api.get("/categories").then((r) => {
+      const m = {}; r.data.forEach((c) => { m[c.id] = c.name; }); setCatMap(m);
+    }).catch(() => {});
+  }, []);
+
+  const SOURCE_LABEL = { imported: "Imported", subscribe_form: "Form", manual: "Manual" };
+  const contactTags = (c) => {
+    const out = [];
+    out.push({ label: c.status === "unsubscribed" ? "Unsubscribed" : "Subscribed", kind: c.status === "unsubscribed" ? "unsub" : "sub" });
+    if (c.source && SOURCE_LABEL[c.source]) out.push({ label: SOURCE_LABEL[c.source], kind: "source" });
+    (c.categories || []).forEach((id) => catMap[id] && out.push({ label: catMap[id], kind: "cat" }));
+    (c.tags || []).forEach((t) => out.push({ label: t, kind: "tag" }));
+    return out;
+  };
+  const TAG_CLS = {
+    sub: "bg-emerald-50 text-emerald-600", unsub: "bg-rose-50 text-rose-600",
+    source: "bg-slate-100 text-slate-500", cat: "bg-indigo-50 text-indigo-600", tag: "bg-amber-50 text-amber-600",
+  };
 
   const add = async () => {
     try {
@@ -159,17 +179,14 @@ export default function Contacts() {
               {filtered.map((c) => (
                 <tr key={c.id} data-testid={`contact-row-${c.id}`} className="hover:bg-slate-50">
                   <td className="px-5 py-3 text-slate-800">
-                    <div className="flex items-center gap-2">
-                      {c.email}
-                      {isUnsub(c) && <span data-testid={`unsub-badge-${c.id}`} className="text-[11px] bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">Unsubscribed</span>}
-                    </div>
+                    <div className="flex items-center gap-2">{c.email}</div>
                   </td>
                   <td className="px-5 py-3 text-slate-600">{`${c.first_name || ""} ${c.last_name || ""}`.trim() || "—"}</td>
                   <td className="px-5 py-3 text-slate-600 hidden md:table-cell">{c.company || "—"}</td>
                   <td className="px-5 py-3 hidden md:table-cell">
                     <div className="flex gap-1 flex-wrap">
-                      {(c.tags || []).map((t) => (
-                        <span key={t} className="text-[11px] bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">{t}</span>
+                      {contactTags(c).map((t, i) => (
+                        <span key={i} data-testid={`contact-tag-${c.id}`} className={`text-[11px] px-2 py-0.5 rounded-full ${TAG_CLS[t.kind]}`}>{t.label}</span>
                       ))}
                     </div>
                   </td>

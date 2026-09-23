@@ -760,8 +760,10 @@ async def create_contact(data: ContactInput, s=Depends(scope)):
     email = data.email.lower()
     if await db.contacts.find_one({"company_id": s["company_id"], "email": email}):
         raise HTTPException(status_code=400, detail="Contact already exists")
-    doc = {**data.model_dump(), "email": email, "company_id": s["company_id"],
-           "user_id": s["user"]["id"], "status": "subscribed", "created_at": now_iso()}
+    payload = data.model_dump()
+    payload["categories"] = payload.pop("category_ids", [])
+    doc = {**payload, "email": email, "company_id": s["company_id"],
+           "user_id": s["user"]["id"], "status": "subscribed", "source": "manual", "created_at": now_iso()}
     res = await db.contacts.insert_one(doc)
     doc["_id"] = res.inserted_id
     return clean(doc)
@@ -827,7 +829,7 @@ async def import_contacts(file: UploadFile = File(...), s=Depends(scope)):
             "last_name": (find_key(row, "last_name", "lastname", "last name", "achternaam") or "").strip(),
             "company": (find_key(row, "company", "bedrijf", "organization") or "").strip(),
             "tags": [t.strip() for t in tags_raw.split(",") if t.strip()],
-            "status": "subscribed", "created_at": now_iso(),
+            "status": "subscribed", "source": "imported", "created_at": now_iso(),
         })
         imported += 1
     return {"imported": imported, "skipped": skipped}
@@ -938,7 +940,7 @@ async def _start_send(campaign, company_id, contact_ids, user, category_ids=None
     token = await MS.get_access_token(user["id"])
     real = bool(token)
     row = await db.mailboxes.find_one({"user_id": user["id"]})
-    sender = row.get("email") if row else user["email"]
+    sender = (row.get("email") if row else None) or os.environ.get("EMAIL_SENDER") or user["email"]
     company = await db.companies.find_one({"_id": oid(company_id)})
     await db.deliveries.delete_many({"campaign_id": str(campaign["_id"])})
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sending"}})

@@ -226,13 +226,27 @@ Content-Type: application/json
                 {logo && <img src={logo} alt="" className="h-12 mx-auto object-contain mb-4" />}
                 <h3 className="font-display font-bold text-lg text-slate-900">{s.form_title}</h3>
                 <p className="text-sm text-slate-500 mt-1.5 mb-5">{s.form_intro}</p>
-                <div className="space-y-2 text-left">
+                <div className="space-y-3 text-left">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="h-9 rounded-lg border border-slate-200 bg-slate-50" />
-                    <div className="h-9 rounded-lg border border-slate-200 bg-slate-50" />
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500 mb-1">First name</label>
+                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">First name</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500 mb-1">Last name</label>
+                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">Last name</div>
+                    </div>
                   </div>
-                  <div className="h-9 rounded-lg border border-slate-200 bg-slate-50" />
-                  {s.collect_city && <div className="h-9 rounded-lg border border-slate-200 bg-slate-50" />}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Email address</label>
+                    <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">you@example.com</div>
+                  </div>
+                  {s.collect_city && (
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500 mb-1">City / municipality</label>
+                      <div className="h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 text-xs text-slate-400">City</div>
+                    </div>
+                  )}
                   <div className="h-9 rounded-full text-white text-sm font-semibold flex items-center justify-center mt-2" style={{ background: primary }}>Subscribe</div>
                 </div>
               </div>

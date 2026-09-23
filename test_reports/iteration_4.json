@@ -1,0 +1,58 @@
+{
+  "summary": "Iteration 4 covers Batch C: public subscribe API, hosted subscribe form, categories CRUD, subscribe settings, plans page + POST /plan/request, category-targeted send, custom confirm dialog, workspace-switch progress overlay, and Builder autosave. Wrote /app/backend/tests/test_batch_c.py (15 tests, all pass). Frontend Playwright verified: (1) /developers renders categories-card, form-url = https://campaigns.koodh.com/subscribe/<api_key>, api-key visible, save-subscribe-settings persists after reload, connection-card shows 'Connected' after loading the public form, regen-key-btn opens confirm-dialog, delete-category opens confirm-dialog and removes the row; (2) public /subscribe/<api_key> renders branding + category checkbox and shows subscribe-thankyou on submit (also confirmed backend creates a new contact with status=subscribed + chosen category via /public/subscribe); invalid api_key shows 'Form unavailable' page; (3) /plans shows plan-card-free|pro|enterprise, current-plan indicator, request-plan-pro opens quote-popup, request-plan-free succeeds without popup, POST /api/plan/request returns paid:true for pro/enterprise and paid:false for free; (4) Builder autosave: after fixing a runtime crash (useRef was not imported), a new campaign auto-saves within a few seconds ('Auto-saved' indicator shown), URL rewrites to /campaigns/<id>, campaign appears in list without clicking Save; (5) custom confirm dialog verified for delete-category, regen-key, and Contacts 'Delete all'; (6) workspace-switcher triggers progress-overlay checklist (Loading campaigns / Loading contacts / Refreshing dashboard) centered full-screen. Backend 15/15 passing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/contacts",
+        "issue": "ContactInput saves as field `category_ids`, but _start_send (and public_subscribe / list_categories.contacts count) all filter/index on field `categories`. A contact created via authenticated POST /api/contacts with category_ids=[X] is NOT reachable by SendInput.category_ids=[X] and does NOT appear in the category's contact count. Only contacts created via the public subscribe endpoint are correctly targetable. Fix: normalise to a single field name in create_contact (store as `categories`) — or map category_ids→categories on write."
+      },
+      {
+        "endpoint": "POST /api/plan/request",
+        "issue": "Real email delivery to clara.global@koodh.com not asserted (no delivery mock configured). Endpoint returns 200 in both success and email-failure branches — an SMTP outage is silently swallowed by the try/except and only logged."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Builder.js",
+        "issue": "Runtime error 'useRef is not defined' on every visit to /campaigns/new and /campaigns/:id. useRef is used at line 43 (const hydrated = useRef(false)) but was not in the imports from 'react'. This crashed the entire builder page including autosave, block palette, canvas — replaced by the Emergent runtime-error overlay. FIXED in this iteration (added useRef to the react import). After fix, autosave, block adding, and campaign persistence all verified working.",
+        "selector": "/campaigns/new (whole page)",
+        "priority": "HIGH (was blocking Batch C acceptance until fixed)"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_batch_c.py",
+    "/app/test_reports/pytest/pytest_batch_c.xml"
+  ],
+  "action_items": [
+    "Verify the category/category_ids field mismatch in create_contact — currently the authenticated 'Add contact' path stores category_ids while the public subscribe / send filter / category count all use `categories`. Either alias on write or migrate to one canonical field name.",
+    "(nit) Consider surfacing plan-request email delivery failures (currently swallowed) so admins know when clara.global@koodh.com wasn't reached.",
+    "(carried over from iter_3) /api/unsubscribe/{track_id} still returns success page for unknown IDs; consider signed HMAC unsubscribe tokens."
+  ],
+  "critical_code_review_comments": [
+    "Builder.js was importing { useEffect, useState, useMemo } from 'react' but calling useRef(false) — this is exactly the kind of missing-import that breaks a whole page and cannot be caught by ESLint's default config alone. Recommend enabling react/jsx-uses-react + react/react-in-jsx-scope OR a stricter no-undef rule in the frontend lint config so this fails at build.",
+    "server.py:_start_send filters contacts by field 'categories' but POST /api/contacts persists 'category_ids'. Two field names for the same concept guarantees latent bugs. Pick one and add a migration.",
+    "server.py:public_subscribe uses `$set` on first_name/last_name/city even when data.first_name is empty string — an existing contact re-subscribing with a blank form will overwrite their real names with '' (defaults on PublicSubscribeInput are ''). Only overwrite when data.first_name is non-empty.",
+    "server.py:_subscribe_out fallback for public_base uses os.environ['BACKEND_URL'] which would 500 if PUBLIC_BASE_URL is unset AND BACKEND_URL happens to be missing. Use os.environ.get(...) with a safe fallback.",
+    "server.py:GET /public/form/{api_key} silently flips api_connected=True the first time any URL is fetched — including a Playwright preflight. That is convenient for the 'Connected' checkmark but means a single OPTIONS/preview request is enough to flip state. Acceptable but worth documenting."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/Builder.js (added useRef to react imports — fixes runtime crash on the entire builder route)",
+    "/app/backend/tests/test_batch_c.py (new — 15 tests, all pass)"
+  ],
+  "success_rate": {
+    "backend": "15/15 new (100%)",
+    "frontend": "100% of tested flows after the Builder useRef fix (public subscribe, /developers CRUD + persist + connection + regen confirm, /plans + quote popup, autosave, custom confirm dialog on 3 flows, workspace switch progress overlay)"
+  },
+  "test_credentials": "Admin: yannick.gijbels@koodh.com / Koodh2026! (TOTP secret in mongo db.users.totp_secret — currently VLGJTATFHVFPTFV7Q4FQL3ATFOGVVB5Q). Company api_key: clr_Ed0z2JcUxEhJNGA8nXLDs8e1NnIh1p2M (TEST_UI_Brand).",
+  "seed_data_creation": "test_batch_c.py creates ephemeral TEST_-prefixed categories/contacts/campaigns and cleans them up (fixtures delete via /categories, /contacts, /campaigns). RegenKey test rotates the api_key and immediately restores the original ADMIN_API_KEY directly in mongo so subsequent tests / UI keep working.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public form URL: https://<frontend>/subscribe/<api_key> (frontend route, NOT /api). Backend endpoints: GET /api/public/form/{key}, POST /api/public/subscribe/{key} — both no-auth. /api/plan/request returns {paid: bool} where paid=true for pro|enterprise. Category-targeted send: send /campaigns/{id}/send with body {contact_ids: [], category_ids: [cat_id]} — filters contacts by field `categories`, excludes status='unsubscribed'. NOTE the field-name inconsistency in create_contact (see backend_issues). Builder now imports useRef — do not remove.",
+  "rca of the issue": "Builder crash RCA: /app/frontend/src/pages/Builder.js line 1 imported only { useEffect, useState, useMemo } from 'react', but line 43 introduced `const hydrated = useRef(false)` for the autosave hydration guard. At runtime React evaluates useRef against the module scope and gets ReferenceError → Emergent's error boundary intercepts and shows the 'Runtime error' overlay covering the entire /campaigns/new page. Fix was one line: add useRef to the react import. After fix, autosave loop initialises correctly (hydrated flag prevents the first initial-state effect from triggering a save), and the debounced autosave writes to /api/campaigns POST → replaces URL with /campaigns/<id> → subsequent edits PUT to the same id."
+}

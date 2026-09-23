@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
@@ -382,26 +382,32 @@ function SendModal({ campaignId, onClose, onSent }) {
   const [when, setWhen] = useState("now"); // now | schedule
   const [scheduleAt, setScheduleAt] = useState("");
   const [progress, setProgress] = useState(false);
+  const [allCats, setAllCats] = useState([]);
+  const [cats, setCats] = useState({});
 
   useEffect(() => {
     api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
     api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
     api.get("/quota").then((r) => setQuota(r.data)).catch(() => {});
+    api.get("/categories").then((r) => setAllCats(r.data)).catch(() => {});
   }, []);
+
+  const catIds = Object.keys(cats).filter((k) => cats[k]);
 
   const doSend = async () => {
     setSending(true);
     const ids = all ? null : Object.keys(selected).filter((k) => selected[k]);
+    const target = catIds.length ? { category_ids: catIds } : { contact_ids: ids };
     try {
       if (when === "schedule") {
         if (!scheduleAt) { toast.error("Please pick a date and time"); setSending(false); return; }
         const iso = new Date(scheduleAt).toISOString();
-        await api.post(`/campaigns/${campaignId}/schedule`, { contact_ids: ids, scheduled_at: iso });
+        await api.post(`/campaigns/${campaignId}/schedule`, { ...target, scheduled_at: iso });
         toast.success(`Campaign scheduled for ${new Date(scheduleAt).toLocaleString()}`);
         onSent();
         return;
       }
-      const { data } = await api.post(`/campaigns/${campaignId}/send`, { contact_ids: ids });
+      const { data } = await api.post(`/campaigns/${campaignId}/send`, target);
       setProgress(true);
       const mode = data.mode;
       setTimeout(() => toast.success(`Sent to ${data.recipients} recipient(s)${mode === "simulation" ? " (simulation)" : " via Microsoft 365"}`), 100);
@@ -411,7 +417,9 @@ function SendModal({ campaignId, onClose, onSent }) {
     }
   };
 
-  const count = all ? contacts.length : Object.values(selected).filter(Boolean).length;
+  const count = catIds.length
+    ? contacts.filter((c) => c.status !== "unsubscribed" && (c.categories || []).some((id) => catIds.includes(id))).length
+    : all ? contacts.filter((c) => c.status !== "unsubscribed").length : Object.values(selected).filter(Boolean).length;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
@@ -440,10 +448,10 @@ function SendModal({ campaignId, onClose, onSent }) {
             </div>
           )}
           <label className="flex items-center gap-2 mb-3 cursor-pointer">
-            <input type="checkbox" data-testid="send-all-checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} className="h-4 w-4 accent-rose-600" />
-            <span className="text-sm text-slate-700">Send to all contacts ({contacts.length})</span>
+            <input type="checkbox" data-testid="send-all-checkbox" checked={all} disabled={catIds.length > 0} onChange={(e) => setAll(e.target.checked)} className="h-4 w-4 accent-rose-600" />
+            <span className="text-sm text-slate-700">Send to all subscribed contacts</span>
           </label>
-          {!all && (
+          {!all && catIds.length === 0 && (
             <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-64 overflow-y-auto">
               {contacts.map((c) => (
                 <label key={c.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-50">
@@ -451,6 +459,25 @@ function SendModal({ campaignId, onClose, onSent }) {
                   <span className="text-sm text-slate-700">{c.email}</span>
                 </label>
               ))}
+            </div>
+          )}
+
+          {allCats.length > 0 && (
+            <div className="mt-4">
+              <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">Or target by tag / category</div>
+              <div className="flex flex-wrap gap-2">
+                {allCats.map((c) => {
+                  const on = !!cats[c.id];
+                  return (
+                    <button key={c.id} type="button" data-testid={`send-cat-${c.id}`}
+                      onClick={() => setCats({ ...cats, [c.id]: !on })}
+                      className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full clara-trans ${on ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                      <span className="h-2 w-2 rounded-full" style={{ background: on ? "#fff" : c.color }} /> {c.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {catIds.length > 0 && <p className="text-xs text-slate-400 mt-2">Sending to everyone in {catIds.length} selected {catIds.length === 1 ? "tag" : "tags"} — {count} subscribed contact(s).</p>}
             </div>
           )}
 
