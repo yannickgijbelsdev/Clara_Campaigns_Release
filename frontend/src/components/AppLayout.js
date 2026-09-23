@@ -122,8 +122,8 @@ export default function AppLayout({ children, title, subtitle, actions }) {
     : BASE_NAV;
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
+    <div className="min-h-screen bg-[#F5F6F8]">
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/70">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-4">
           <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
           <div className="h-6 w-px bg-slate-200" />

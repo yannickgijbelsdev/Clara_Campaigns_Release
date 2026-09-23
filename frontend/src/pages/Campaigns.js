@@ -49,8 +49,8 @@ export default function Campaigns() {
           {items.map((c, i) => (
             <motion.div key={c.id} data-testid={`campaign-card-${c.id}`}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-4 hover:shadow-md hover:border-rose-200 transition-all">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center font-display font-bold text-lg shrink-0">
+              className="bg-white rounded-3xl clara-soft clara-hover clara-trans p-4 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center font-display font-bold text-lg shrink-0">
                 {c.name.slice(0, 1).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
