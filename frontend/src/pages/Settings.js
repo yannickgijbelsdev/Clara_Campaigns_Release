@@ -53,7 +53,9 @@ function AvatarCard() {
         <div className="relative">
           {av
             ? <img src={av} alt="" className="h-20 w-20 rounded-2xl object-cover clara-soft" />
-            : <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center text-2xl font-bold">{(user?.name || "U").slice(0, 1).toUpperCase()}</div>}
+            : <div className="h-20 w-20 rounded-2xl bg-rose-50 overflow-hidden clara-soft flex items-end justify-center">
+                <img src="/koodh-avatar.png" alt="koodh" className="h-full w-full object-cover object-top scale-110" draggable="false" />
+              </div>}
           {busy && <div className="absolute inset-0 rounded-2xl bg-white/70 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-rose-600" /></div>}
         </div>
         <div>

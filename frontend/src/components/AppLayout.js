@@ -124,8 +124,8 @@ function UserMenu() {
   const Avatar = ({ size = "h-9 w-9" }) => av ? (
     <img src={av} alt="" className={`${size} rounded-full object-cover shadow-sm`} />
   ) : (
-    <div className={`${size} rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm shadow-rose-600/20`}>
-      {(user?.name || "U").slice(0, 1).toUpperCase()}
+    <div className={`${size} rounded-full bg-rose-50 overflow-hidden shadow-sm flex items-end justify-center`}>
+      <img src="/koodh-avatar.png" alt="koodh" className="h-full w-full object-cover object-top scale-110" draggable="false" />
     </div>
   );
 
