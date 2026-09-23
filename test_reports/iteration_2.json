@@ -1,0 +1,52 @@
+{
+  "summary": "Full backend + frontend coverage of the new iteration (Admin role, Licensing, Companies/Workspaces, X-Company-Id scoping). Backend: added /app/backend/tests/test_new_features.py — 13/13 passed (admin login as yannick via mongo TOTP secret, /api/admin/users list + 403 for non-admin + 401 unauth, license assign/revoke with assigned_by, license gating on send returns 403 for unlicensed and 200/simulation once activated, /api/companies list/create/delete + admin sees all, X-Company-Id scoping isolates campaigns/contacts/dashboard between two companies, foreign X-Company-Id from a non-admin falls back to own default workspace). Regression: 14/14 passed after updating two tests to grant a license before /send (new gate). Frontend: logged in as yannick (mfa via pyotp+mongo secret), verified workspace-switcher visible, nav-admin visible, workspace add flow (add-company-btn → new-company-input → confirm-add-company) creates a company and reloads, /admin page renders 33 user rows + 15 company cards, tab switching works, Integrations page shows the 7-step MS 365 guide with exact redirect URI and copy button. Normal user (fresh registration) sees workspace-switcher but NO nav-admin; visiting /admin directly renders an empty table because backend returns 403.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login (regression)", "issue": "Brute-force lockout key still uses `<ip>:<email>` — behind ingress the client IP shifts across pod IPs so counters can be sharded. Not re-verified this iteration; still flagged from iteration_1."},
+      {"endpoint": "/api/admin/users/{id}/license", "issue": "No validation on `plan` field — any string is accepted (e.g., plan='hackerplan'). Consider Pydantic Enum(free|pro|enterprise)."},
+      {"endpoint": "/api/companies (POST)", "issue": "No cap on companies per user; a user can create unlimited workspaces. Consider a soft limit for non-admins."},
+      {"endpoint": "/api/companies/{id} (DELETE)", "issue": "Deletes the company + its campaigns/contacts, but orphan deliveries remain in db.deliveries (they were only tied by campaign_id). Cleanup should also `db.deliveries.delete_many({company_id: id})`."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin page (/admin)", "issue": "Route is reachable by URL for non-admin users and renders the shell (empty table). The nav item is correctly hidden and the API returns 403, so there is no data leak, but the page should redirect non-admins away or render an 'Access denied' message.", "selector": "/admin route", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login/Register", "issues": ["Register form's Name field uses only placeholder 'John Doe' with no visible label — browser required-field validation can be jarring; matches the app style but easy to miss."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_new_features.xml",
+    "/app/test_reports/pytest/pytest_regression.xml"
+  ],
+  "action_items": [
+    "(low) Redirect non-admins away from /admin or render an access-denied state instead of empty table.",
+    "(low) Validate license `plan` against enum {free, pro, enterprise} on PATCH /api/admin/users/{id}/license.",
+    "(low) DELETE /api/companies/{id} should also delete matching deliveries.",
+    "(carried over from iteration_1) Fix brute-force lockout key to use X-Forwarded-For or email-only.",
+    "(carried over) Replace via.placeholder.com URLs in Builder default HTML."
+  ],
+  "critical_code_review_comments": [
+    "scope() dependency correctly falls back to owner's default workspace if a non-admin passes an X-Company-Id they don't own — verified via test.",
+    "_seed_admin idempotently updates role + password_hash + license on every startup, so admin password changes in .env take effect. Good.",
+    "License gate uses fresh mongo lookup of the user's license on every send — always sees latest state. Good.",
+    "clean() strips password_hash + totp_secret + _id — safe.",
+    "admin_set_license accepts a raw dict — no Pydantic validation; typos in plan silently stored."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new)",
+    "/app/backend/tests/backend_test.py (added license fixture to unblock send tests under new gate)"
+  ],
+  "success_rate": {"backend": "27/27 (100%) — 13 new + 14 regression", "frontend": "100% of tested flows (admin login, workspace switcher, admin page, integrations guide, non-admin gating)"},
+  "test_credentials": "Admin: yannick.gijbels@koodh.com / Koodh2026! (TOTP secret in mongo test_database.users.totp_secret). Also admin@claracampaigns.com / Admin123!. Normal users are registered per test run.",
+  "seed_data_creation": "Tests create ephemeral users (test_*@example.com) + a few TEST_* companies which are cleaned up in-test where relevant. Some ephemeral users remain across runs but do not affect tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "backend/pytest.ini enables xdist -n 2 --dist loadscope. To login as yannick programmatically: fetch users.totp_secret from mongo (mongodb://localhost:27017 db=test_database), use pyotp.TOTP(secret).now(). New gate: any non-admin /api/campaigns/{id}/send returns 403 until admin PATCHes their license to {plan:'pro'|'enterprise', active:true}. Frontend interceptor reads localStorage 'clara_company' → X-Company-Id header; switching workspace does window.location.reload().",
+  "rca of the issue": "N/A — no new blocking issues found this iteration."
+}

@@ -11,6 +11,7 @@ import pytest
 import pyotp
 import requests
 from pymongo import MongoClient
+from bson import ObjectId
 
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else "https://inbox-pro-64.preview.emergentagent.com"
 API = f"{BASE_URL}/api"
@@ -190,6 +191,9 @@ class TestCampaigns:
         assert r.status_code == 404
 
     def test_send_simulation_and_tracking(self, user_a):
+        # Grant license (new iteration requires active license for send)
+        mongo.users.update_one({"email": user_a["email"]},
+                                {"$set": {"license": {"plan": "pro", "active": True}}})
         # Ensure at least 1 contact
         email = _rand_email("send")
         requests.post(f"{API}/contacts", json={"email": email, "first_name": "Rec"},
@@ -243,6 +247,8 @@ class TestCampaigns:
         assert len(s["recipients"]) >= 1
 
     def test_send_no_recipients_400(self, user_a):
+        mongo.users.update_one({"email": user_a["email"]},
+                                {"$set": {"license": {"plan": "pro", "active": True}}})
         c = self._create_campaign(user_a)
         r = requests.post(f"{API}/campaigns/{c['id']}/send",
                           json={"contact_ids": ["507f1f77bcf86cd799439011"]},

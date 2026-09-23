@@ -185,6 +185,7 @@ async def delete_company(company_id: str, user=Depends(A.get_current_user)):
     await db.companies.delete_one({"_id": comp["_id"]})
     await db.campaigns.delete_many({"company_id": company_id})
     await db.contacts.delete_many({"company_id": company_id})
+    await db.deliveries.delete_many({"company_id": company_id})
     return {"ok": True}
 
 
@@ -210,6 +211,8 @@ async def admin_users(user=Depends(A.get_current_user)):
 async def admin_set_license(user_id: str, body: dict, user=Depends(A.get_current_user)):
     require_admin(user)
     plan = body.get("plan", "pro")
+    if plan not in ("free", "pro", "enterprise"):
+        plan = "pro"
     active = bool(body.get("active", True))
     lic = {"plan": plan, "active": active,
            "assigned_by": user["email"], "assigned_at": now_iso() if active else None}

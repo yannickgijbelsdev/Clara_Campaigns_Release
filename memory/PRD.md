@@ -18,11 +18,22 @@ Platform (Dutch) om nieuwsbrieven te versturen vanuit Office365-mailboxen (Micro
 ## Implemented (2026-06-23)
 - Login/register with mandatory TOTP MFA (QR enrollment + verify), brute-force lockout (X-Forwarded-For + email key).
 - Drag/add newsletter builder: blocks Logo, Title (h1/h2/h3), Text, Image, Button, Divider, Spacer; visual + raw HTML editor modes with live iframe preview; email-safe HTML generation.
-- Contacts: CRUD + CSV import (flexible header mapping, dedup) + search; per-user scoped.
-- Office365 integration UI + backend OAuth (MSAL) — needs Azure keys; SIMULATION mode when unconfigured.
+- Contacts: CRUD + CSV import (flexible header mapping, dedup) + search; scoped per company.
+- Office365 integration UI + backend OAuth (MSAL) — needs Azure keys; SIMULATION mode when unconfigured. Step-by-step Microsoft 365 connection guide on the Integrations page.
 - Campaign send with per-recipient deliveries; open tracking (pixel) + click tracking (link rewrite/redirect).
 - Analytics: KPI cards, bar chart, top links, per-recipient open/click log; dashboard aggregates.
-- Verified end-to-end via testing agent (backend 15/16 -> fixes applied; frontend flows 100%).
+- Verified end-to-end via testing agent (iteration_1: fixes applied; iteration_2: 27/27 backend + frontend flows pass).
+
+## Iteration 2 (2026-06-23) — koodh/clara redesign + admin
+- Full UI redesign to English + crimson/rose theme with a top navigation bar (koodh/clara reference look), "clara campaigns" wordmark, and striped login with floating feature bubbles.
+- Framer-motion animations: sliding active-nav pill (layoutId), page transitions, staggered lists, button micro-interactions.
+- Companies / Workspaces: each has its own campaigns & contacts; workspace switcher in top nav; scoping via X-Company-Id header; default workspace auto-created on register.
+- Admin role (yannick.gijbels@koodh.com): Admin page to view ALL users and assign/revoke licenses (free/pro/enterprise), and manage companies. Non-admins are redirected away from /admin.
+- Licensing: sending a campaign requires an active license (admins exempt); unlicensed users get 403.
+
+## Admin accounts
+- yannick.gijbels@koodh.com / Koodh2026! (Administrator, enterprise license)
+- admin@claracampaigns.com / Admin123! (Administrator)
 
 ## Backlog / Remaining
 - P0: Provide Azure App Registration keys (MS_CLIENT_ID/SECRET/TENANT) to enable real Office365 sending (currently SIMULATION).

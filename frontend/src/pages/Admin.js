@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { ShieldCheck, Users, Building2, Trash2, BadgeCheck, Ban, Crown } from "lucide-react";
 
 const PLANS = ["free", "pro", "enterprise"];
 
 export default function Admin() {
+  const { user } = useAuth();
   const [tab, setTab] = useState("users");
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -16,7 +19,9 @@ export default function Admin() {
     api.get("/admin/users").then((r) => setUsers(r.data)).catch(() => {});
     api.get("/companies").then((r) => setCompanies(r.data)).catch(() => {});
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (user?.role === "admin") load(); }, [user]);
+
+  if (user && user.role !== "admin") return <Navigate to="/dashboard" replace />;
 
   const setLicense = async (u, plan, active) => {
     try {
