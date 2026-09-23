@@ -151,15 +151,27 @@ async def send_email(*, to, subject, html):
 
 def reset_email_html(name, reset_url):
     from html import escape
+    mark = "https://koodh-clara.nbg1.your-objectstorage.com/assets/clara-mark.png"
+    brand_row = (
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:6px">'
+        '<tr>'
+        f'<td style="vertical-align:middle"><img src="{mark}" width="30" height="30" alt="Clara" '
+        'style="display:block;border:0;width:30px;height:30px" /></td>'
+        '<td style="vertical-align:middle;padding:0 14px">'
+        '<div style="width:1px;height:26px;background:#334155;line-height:26px;font-size:0">&nbsp;</div></td>'
+        '<td style="vertical-align:middle"><span style="font-size:19px;font-weight:700;color:#ffffff;'
+        'font-family:Arial,Helvetica,sans-serif;letter-spacing:0.2px">Clara Campaigns</span></td>'
+        '</tr></table>'
+    )
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         'style="background:#0f172a;padding:32px 0;font-family:Arial,Helvetica,sans-serif">'
         '<tr><td align="center">'
         '<table role="presentation" width="520" cellpadding="0" cellspacing="0" '
         'style="background:#111827;border-radius:20px;overflow:hidden;max-width:520px">'
-        '<tr><td style="padding:36px 40px 8px">'
-        '<div style="font-size:26px;font-weight:700;color:#ffffff">Password Reset</div>'
-        '<div style="font-size:14px;color:#9ca3af;margin-top:2px">Clara Campaigns</div>'
+        '<tr><td style="padding:32px 40px 4px">'
+        f'{brand_row}'
+        '<div style="font-size:24px;font-weight:700;color:#ffffff;margin-top:14px">Password Reset</div>'
         '</td></tr>'
         f'<tr><td style="padding:16px 40px 0;color:#cbd5e1;font-size:15px;line-height:1.6">'
         f'<p style="margin:0 0 12px">Hello {escape(name)},</p>'
