@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Plus, Users, Send, ShieldCheck, Mail, Zap, MailOpen, MousePointerClick } from "lucide-react";
+import { Plus, Users, Send, Mail } from "lucide-react";
 
 const DOT = { sent: "bg-emerald-500", draft: "bg-slate-400", sending: "bg-amber-500", scheduled: "bg-sky-500", failed: "bg-rose-500" };
 const TAGBG = {
@@ -60,12 +60,7 @@ export default function Dashboard() {
           </span>
         </div>
 
-        <div className="mx-3 mb-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-500 text-white px-4 py-3 flex items-center gap-2 clara-soft">
-          <ShieldCheck className="h-5 w-5" />
-          <span className="text-sm font-semibold">Clara Campaigns — Office 365 Delivery</span>
-        </div>
-
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2 pt-1">
           {!recent.length ? (
             <div className="px-2 py-10 text-center text-slate-400">
               <Mail className="h-9 w-9 mx-auto mb-3 opacity-40" />
@@ -89,30 +84,12 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-          <div className="flex items-center gap-1">
-            {[0, 1, 2, 3, 4].map((n) => (
-              <span key={n} className={`h-1.5 w-1.5 rounded-full ${n < Math.min(recent.length, 5) ? "bg-rose-500" : "bg-slate-200"}`} />
-            ))}
-          </div>
-          <span className="text-xs text-slate-400">{recent.length} recent campaigns</span>
-        </div>
-      </motion.div>
-
-      {/* Floating status toast */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-        className="fixed bottom-6 right-6 z-20 hidden sm:flex items-center gap-3 bg-white rounded-2xl clara-soft border border-slate-100 px-4 py-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-        </span>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold text-slate-800">All systems operational</div>
-          <div className="text-xs text-slate-400 flex items-center gap-1.5">
-            <span className="flex items-center gap-1"><MailOpen className="h-3 w-3" /> {data?.open_rate ?? 0}%</span>
-            <span className="flex items-center gap-1"><MousePointerClick className="h-3 w-3" /> {data?.click_rate ?? 0}%</span>
-          </div>
-        </div>
-        <Zap className="h-4 w-4 text-amber-500" />
+        {recent.length > 0 && (
+          <button onClick={() => navigate("/campaigns")}
+            className="w-full px-6 py-4 border-t border-slate-100 text-sm font-medium text-rose-600 hover:bg-rose-50/50 clara-trans">
+            View all campaigns
+          </button>
+        )}
       </motion.div>
     </AppLayout>
   );

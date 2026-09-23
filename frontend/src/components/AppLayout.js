@@ -126,24 +126,23 @@ export default function AppLayout({ children, title, subtitle, actions }) {
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/70">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-4">
           <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
-          <div className="h-6 w-px bg-slate-200" />
+          <div className="h-5 w-px bg-slate-200/60" />
           <span className="hidden lg:block text-sm text-slate-400 font-medium capitalize mr-1">
             {(user?.license?.plan || "free")} plan
           </span>
           <WorkspaceSwitcher />
-          <div className="h-6 w-px bg-slate-200 hidden md:block" />
 
-          <nav className="hidden md:flex items-center gap-1 ml-1 flex-1">
+          <nav className="hidden md:flex items-center gap-1 ml-3 flex-1">
             {NAV.map(({ to, label }) => {
               const active = location.pathname === to || location.pathname.startsWith(to + "/");
               return (
                 <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
-                  className="relative flex items-center px-3.5 py-2 rounded-full text-sm font-medium transition-colors">
+                  className="relative flex items-center px-4 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900">
                   {active && (
-                    <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }} />
+                    <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full shadow-lg shadow-slate-900/25"
+                      transition={{ type: "spring", stiffness: 400, damping: 34 }} />
                   )}
-                  <span className={`relative z-10 ${active ? "text-white" : "text-slate-600"}`}>
+                  <span className={`relative z-10 ${active ? "text-white" : "text-slate-500"}`}>
                     {label}
                   </span>
                 </NavLink>
@@ -152,13 +151,8 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           </nav>
 
           <div className="flex items-center gap-3 ml-auto">
-            <div className={`hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${
-              mailbox?.connected ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-              {mailbox?.connected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
-              {mailbox?.connected ? "Office 365" : "Simulation Mode"}
-            </div>
-            <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
-              <div className="h-8 w-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-semibold text-sm">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200/60">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm shadow-rose-600/20">
                 {(user?.name || "U").slice(0, 1).toUpperCase()}
               </div>
               <div className="hidden lg:block leading-tight">
