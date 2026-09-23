@@ -8,8 +8,15 @@ import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { toast } from "sonner";
 import {
   Type, AlignLeft, Image as ImageIcon, MousePointer, Minus, Space, Images,
-  Save, Send, Code2, Eye, Trash2, ArrowUp, ArrowDown, Loader2, X, Link2, Check,
+  Save, Send, Code2, Eye, Trash2, ArrowUp, ArrowDown, Loader2, X, Link2, Check, AlertTriangle, User,
 } from "lucide-react";
+
+const MERGE_TAGS = [
+  { token: "{{first_name}}", label: "First name" },
+  { token: "{{last_name}}", label: "Last name" },
+  { token: "{{name}}", label: "Full name" },
+  { token: "{{email}}", label: "Email" },
+];
 
 const PALETTE = [
   { type: "logo", label: "Logo", icon: Images },
@@ -272,7 +279,7 @@ export default function Builder() {
       )}
 
       {showPreview && <PreviewModal html={html} onClose={() => setShowPreview(false)} />}
-      {showSend && campaignId && <SendModal campaignId={campaignId} onClose={() => setShowSend(false)} onSent={() => navigate(`/campaigns/${campaignId}/analytics`)} />}
+      {showSend && campaignId && <SendModal campaignId={campaignId} html={html} onClose={() => setShowSend(false)} onSent={() => navigate(`/campaigns/${campaignId}/analytics`)} />}
       <ProgressOverlay
         open={createProgress}
         title="Newsletter created"
@@ -286,6 +293,25 @@ export default function Builder() {
 }
 
 function L({ children }) { return <label className="block text-[11px] font-medium text-slate-600 mb-1">{children}</label>; }
+
+function TagInserter({ onInsert }) {
+  return (
+    <div className="mb-3 -mt-1">
+      <div className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-1.5 flex items-center gap-1">
+        <User className="h-3 w-3" /> Personalize
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {MERGE_TAGS.map((t) => (
+          <button key={t.token} type="button" data-testid={`insert-tag-${t.token.replace(/[{}]/g, "")}`}
+            onClick={() => onInsert(t.token)}
+            className="text-[11px] px-2 py-1 rounded-full bg-[#7380b6]/10 text-[#7380b6] hover:bg-[#7380b6]/20 font-medium clara-trans">
+            + {t.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 function Inp({ testid, value, onChange, placeholder, type = "text" }) {
   return <input data-testid={testid} type={type} value={value ?? ""} placeholder={placeholder}
     onChange={(e) => onChange(e.target.value)}
@@ -308,6 +334,7 @@ function PropsEditor({ block, update }) {
     case "title":
       return (<>
         <L>Text</L><Inp testid="prop-text" value={p.text} onChange={(v) => update("text", v)} />
+        <TagInserter onInsert={(tok) => update("text", (p.text || "") + tok)} />
         <L>Level</L>
         <div className="flex gap-1 mb-3">
           {["h1", "h2", "h3"].map((lv) => (
@@ -323,6 +350,7 @@ function PropsEditor({ block, update }) {
         <L>Text</L>
         <textarea data-testid="prop-text" value={p.text} onChange={(e) => update("text", e.target.value)}
           className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 mb-3 min-h-[120px] focus:ring-2 focus:ring-rose-500 outline-none" />
+        <TagInserter onInsert={(tok) => update("text", (p.text || "") + tok)} />
         <L>Alignment</L><AlignPicker value={p.align} onChange={(v) => update("align", v)} />
         <L>Color</L><input type="color" value={p.color} onChange={(e) => update("color", e.target.value)} className="w-full h-9 rounded-lg border border-slate-200" />
       </>);
@@ -343,6 +371,7 @@ function PropsEditor({ block, update }) {
     case "button":
       return (<>
         <L>Button text</L><Inp testid="prop-text" value={p.text} onChange={(v) => update("text", v)} />
+        <TagInserter onInsert={(tok) => update("text", (p.text || "") + tok)} />
         <L>Link</L><Inp testid="prop-link" value={p.link} onChange={(v) => update("link", v)} placeholder="https://" />
         <L>Background</L><input type="color" value={p.bg} onChange={(e) => update("bg", e.target.value)} className="w-full h-9 rounded-lg border border-slate-200 mb-3" />
         <L>Text color</L><input type="color" value={p.color} onChange={(e) => update("color", e.target.value)} className="w-full h-9 rounded-lg border border-slate-200 mb-3" />
@@ -372,7 +401,7 @@ function PreviewModal({ html, onClose }) {
   );
 }
 
-function SendModal({ campaignId, onClose, onSent }) {
+function SendModal({ campaignId, html = "", onClose, onSent }) {
   const [contacts, setContacts] = useState([]);
   const [selected, setSelected] = useState({});
   const [all, setAll] = useState(true);
@@ -420,6 +449,17 @@ function SendModal({ campaignId, onClose, onSent }) {
   const count = catIds.length
     ? contacts.filter((c) => c.status !== "unsubscribed" && (c.categories || []).some((id) => catIds.includes(id))).length
     : all ? contacts.filter((c) => c.status !== "unsubscribed").length : Object.values(selected).filter(Boolean).length;
+
+  // Personalization check: which recipients lack a name the newsletter needs.
+  const targetContacts = catIds.length
+    ? contacts.filter((c) => c.status !== "unsubscribed" && (c.categories || []).some((id) => catIds.includes(id)))
+    : all ? contacts.filter((c) => c.status !== "unsubscribed")
+      : contacts.filter((c) => selected[c.id]);
+  const needFirst = /\{\{\s*(first_name|name)\s*\}\}/i.test(html);
+  const needLast = /\{\{\s*(last_name|name)\s*\}\}/i.test(html);
+  const usesName = needFirst || needLast;
+  const missingName = targetContacts.filter((c) =>
+    (needFirst && !(c.first_name || "").trim()) || (needLast && !(c.last_name || "").trim()));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
@@ -478,6 +518,18 @@ function SendModal({ campaignId, onClose, onSent }) {
                 })}
               </div>
               {catIds.length > 0 && <p className="text-xs text-slate-400 mt-2">Sending to everyone in {catIds.length} selected {catIds.length === 1 ? "tag" : "tags"} — {count} subscribed contact(s).</p>}
+            </div>
+          )}
+
+          {usesName && missingName.length > 0 && (
+            <div data-testid="personalization-warning" className="mt-4 text-xs rounded-lg p-3 border bg-amber-50 border-amber-200 text-amber-800">
+              <div className="font-semibold flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> Name can't be personalized for {missingName.length} contact(s)</div>
+              <p className="mt-1 leading-relaxed">Your newsletter uses a name field, but these recipients have no name filled in — their greeting will show up blank. Add their name in Contacts to personalize the email.</p>
+              <div className="mt-2 max-h-28 overflow-y-auto flex flex-wrap gap-1.5">
+                {missingName.map((c) => (
+                  <span key={c.id} data-testid={`missing-name-${c.id}`} className="px-2 py-0.5 rounded-full bg-white border border-amber-200 text-amber-700">{c.email}</span>
+                ))}
+              </div>
             </div>
           )}
 

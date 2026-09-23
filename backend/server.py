@@ -16,6 +16,7 @@ import uuid
 import html as html_lib
 import secrets
 import asyncio
+import re
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 
@@ -1022,7 +1023,8 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
         }
         await db.deliveries.insert_one(delivery)
         unsub_url = f"{public_base}/api/unsubscribe/{A.make_unsub_token(company_id, str(ct['_id']))}"
-        html = MS.personalize_html(campaign.get("html", ""), track_id, public_base, company, public_base, unsub_url)
+        personalized = _apply_merge_tags(campaign.get("html", ""), ct)
+        html = MS.personalize_html(personalized, track_id, public_base, company, public_base, unsub_url)
         try:
             if real:
                 await MS.send_mail(token, sender, campaign.get("subject", ""), html, ct["email"], delivery["name"], attachments)
@@ -1035,6 +1037,28 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
 
 def MS_storage_logo(company):
     return storage.get_object(company["logo_path"])
+
+
+_MERGE_RE = re.compile(r"\{\{\s*([a-zA-Z_]+)\s*\}\}")
+
+
+def _apply_merge_tags(html: str, ct: dict) -> str:
+    """Replace {{first_name}}, {{last_name}}, {{email}}, {{name}} with the
+    contact's attributes. Missing values become an empty string."""
+    fn = (ct.get("first_name") or "").strip()
+    ln = (ct.get("last_name") or "").strip()
+    values = {
+        "first_name": fn,
+        "last_name": ln,
+        "email": ct.get("email", ""),
+        "name": (f"{fn} {ln}").strip(),
+    }
+
+    def sub(m):
+        key = m.group(1).strip().lower()
+        return values[key] if key in values else m.group(0)
+
+    return _MERGE_RE.sub(sub, html)
 
 
 async def _start_send(campaign, company_id, contact_ids, user, category_ids=None):
