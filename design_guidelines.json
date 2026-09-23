@@ -1,0 +1,120 @@
+{
+  "project_name": "Clara Campaigns",
+  "app_type": "hybrid_fullstack",
+  "theme": "dark_light_hybrid",
+  "brand_identity": {
+    "name": "Clara Campaigns",
+    "tagline": "Professional Office 365 Email Marketing & Newsletter Intelligence",
+    "reference_style": "clr.koodh.com",
+    "vibe": "High-precision corporate SaaS, sleek dark navigation with crisp high-contrast light content area, refined micro-interactions and tactile drag-and-drop editor interface"
+  },
+  "typography": {
+    "heading_font": "Outfit, Cabinet Grotesk, sans-serif",
+    "body_font": "Plus Jakarta Sans, Inter, sans-serif",
+    "mono_font": "JetBrains Mono, Source Code Pro, monospace",
+    "hierarchy": {
+      "h1_hero": "text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100",
+      "h2_section": "text-xl sm:text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-200",
+      "h3_card": "text-lg font-medium tracking-snug text-slate-800 dark:text-slate-200",
+      "body_main": "text-sm text-slate-600 dark:text-slate-300 leading-relaxed",
+      "caption_label": "text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-400"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": "#4F46E5",
+      "primary_hover": "#4338CA",
+      "primary_light": "#EEF2FF",
+      "primary_dark": "#312E81",
+      "accent_emerald": "#10B981",
+      "accent_amber": "#F59E0B",
+      "accent_rose": "#F43F5E",
+      "accent_sky": "#0284C7",
+      "office365_blue": "#0078D4",
+      "dark_sidebar": "#0F172A",
+      "dark_sidebar_active": "#1E293B",
+      "light_bg": "#F8FAFC",
+      "card_bg": "#FFFFFF",
+      "card_border": "#E2E8F0"
+    },
+    "status_badges": {
+      "sent": "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+      "draft": "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+      "sending": "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 animate-pulse",
+      "failed": "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+      "connected": "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
+    }
+  },
+  "layout_and_structure": {
+    "app_shell": {
+      "sidebar": "Fixed left sidebar with dark theme (#0F172A), collapsible, displaying Clara Campaigns logo, main nav links (Dashboard, Campaigns, Newsletter Builder, Contacts/CSV, Office365 Integration, Analytics, Settings), connected O365 account status indicator, user avatar, and logout with MFA badge.",
+      "header": "Top header with sticky navigation, active route title, search bar, send test campaign quick action, Office365 sync status button, and TOTP MFA security indicator badge.",
+      "main_container": "Fluid container with generous padding (p-6 to p-8), max-w-7xl mx-auto, light gray background (#F8FAFC)."
+    },
+    "grids": {
+      "dashboard_bento": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6",
+      "analytics_split": "grid grid-cols-1 lg:grid-cols-3 gap-6",
+      "editor_workspace": "grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[calc(100vh-140px)]"
+    }
+  },
+  "key_features_ux_specifications": {
+    "login_mfa_flow": {
+      "description": "Two-step authentication flow inspired by clr.koodh.com login.",
+      "step_1": "Email & Password login with Microsoft 365 OAuth direct sign-in button.",
+      "step_2": "TOTP Authenticator app code verification screen with 6-digit numeric input boxes, resend/recovery options, and 'Remember this device' option."
+    },
+    "newsletter_builder": {
+      "layout": "3-column layout (Block Drawer on Left col-span-3, Interactive Drag/Drop & Visual Canvas in Center col-span-6, Block Properties & HTML Editor Toggle on Right col-span-3).",
+      "predefined_blocks": [
+        "Title Header Block (H1, H2, H3 customization)",
+        "Body Text Block (Rich text with formatting toolbar)",
+        "Logo Block (Image upload/URL, size, alignment)",
+        "Image Block (Image URL, alt text, link URL, width)",
+        "Button CTA Block (Button text, link URL, background color, text color, corner radius)",
+        "Divider & Spacer Blocks (Height, line style, color)"
+      ],
+      "dual_mode": "Seamless toggle between Visual Drag-and-Drop Mode and Raw HTML Editor Mode with syntax highlighting and live iframe preview."
+    },
+    "contact_list_management": {
+      "csv_import_modal": "Drag-and-drop CSV file dropzone, column mapping preview table (Email, First Name, Last Name, Company, Tags), duplicate email resolution handling (skip/overwrite), and progress status bar.",
+      "table_view": "Dense, clean table listing contacts, email validity status, open rate, click count, tag pills, search filter, and bulk actions."
+    },
+    "office365_integration": {
+      "status_card": "Connection status card showing connected Office365 tenant, sender email address, OAuth token expiry state, re-authenticate button, and test connection action."
+    },
+    "campaign_analytics": {
+      "kpi_cards": "Total Sent, Total Opened (Open Rate %), Total Clicked (Click-Through Rate %), Bounce / Unsubscribe Rate.",
+      "charts": "Recharts visual charts for Opens/Clicks over time, Top Clicked Links breakdown table, and Recipient Click Log with timestamp, contact name, email, and specific link clicked."
+    }
+  },
+  "component_guidelines": {
+    "buttons": "Pill or rounded-lg styling, explicit hover states (e.g., hover:bg-indigo-700), active states, and active focus rings. Primary buttons use indigo (#4F46E5), secondary buttons use outline with backdrop blur.",
+    "cards": "White background, border border-slate-200, rounded-xl, subtle shadow-sm, hover:shadow-md transition-shadow.",
+    "inputs_and_selects": "Use Shadcn customized components with data-testid on every field. No raw transparent dropdowns or unstyled native select.",
+    "toasts": "Sonner toast notifications for action confirmations (e.g. 'Campaign Scheduled', 'CSV Imported Successfully', 'O365 Connected')."
+  },
+  "motion_and_interactions": {
+    "library": "Framer Motion & Lucide React icons",
+    "animations": "Staggered fade-in on dashboard load, smooth block drag-and-drop feedback with subtle shadow lift, smooth mode transitions between HTML and Visual builder."
+  },
+  "image_urls": {
+    "email_illustration_1": "https://images.unsplash.com/photo-1683117927786-f146451082fb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzb2Z0d2FyZSUyMGRhc2hib2FyZCUyMHVzZXIlMjBhdmF0YXIlMjB0ZWNoJTIwd29ya3NwYWNlJTIwZW1haWwlMjBtYXJrZXRpbmd8ZW58MHx8fHwxNzkwMTY3OTEwfDA&ixlib=rb-4.1.0&q=85",
+    "analytics_laptop": "https://images.pexels.com/photos/12969403/pexels-photo-12969403.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "workspace_tech": "https://images.pexels.com/photos/1714203/pexels-photo-1714203.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+  },
+  "instructions_to_main_agent": [
+    "NOTE: All frontend components are in React JS (.js files, NOT .tsx). Do not write TypeScript type annotations in .js files.",
+    "Ensure every interactive button, input, tab, table row, and modal contains explicit data-testid attributes formatted in kebab-case (e.g. data-testid='create-campaign-button', data-testid='csv-import-dropzone', data-testid='totp-mfa-input').",
+    "Reference the layout style of clr.koodh.com: clear dark left sidebar navigation with branding header, structured white content cards with light gray background, crisp status badges, and prominent MFA/O365 status indicator.",
+    "Implement the complete drag-and-drop newsletter editor with preset blocks (Title, Body text, Logo, Image, Button, Divider) and raw HTML editor mode toggle.",
+    "Ensure Sonner toast notifications are triggered for important user actions (e.g. sending campaigns, saving templates, CSV contacts import, MFA verification).",
+    "Do not center-align the entire app container. Maintain left-aligned readable grid structures with generous padding."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Avoid generic AI slop aesthetics. Use crisp dark navigation paired with high-contrast light content surfaces.",
+    "No transparent backgrounds on dropdowns, headers, or overlays.",
+    "All interactive elements MUST include data-testid.",
+    "Use specific CSS transitions (e.g., transition: opacity 0.2s ease, transform 0.2s ease), never transition: all.",
+    "Custom scrollbars only; do not create layout shifting."
+  ]
+}

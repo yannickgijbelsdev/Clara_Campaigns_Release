@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --clara-primary: #4F46E5;
+    --clara-primary-hover: #4338CA;
+    --clara-sidebar: #0F172A;
+    --clara-sidebar-active: #1E293B;
+    --clara-light-bg: #F8FAFC;
+    --o365-blue: #0078D4;
+}
+
+body {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--clara-light-bg);
+}
+
+h1, h2, h3, h4, .font-display {
+    font-family: 'Outfit', sans-serif;
+}
+
+.font-mono, code, pre {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 222 47% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        --primary: 243 75% 59%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 210 40% 96%;
+        --secondary-foreground: 222 47% 11%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215 16% 47%;
+        --accent: 210 40% 96%;
+        --accent-foreground: 222 47% 11%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 214 32% 91%;
+        --input: 214 32% 91%;
+        --ring: 243 75% 59%;
+        --radius: 0.65rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.sidebar-scroll::-webkit-scrollbar-thumb { background: #334155; }
+
+@keyframes clara-fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.clara-fade-up { animation: clara-fade-up 0.4s ease both; }
+
+.otp-box::-webkit-outer-spin-button,
+.otp-box::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
