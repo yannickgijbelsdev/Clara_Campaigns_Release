@@ -2,15 +2,34 @@ import os
 import re
 import ipaddress
 import logging
+import html as _html
 import httpx
 import aiosmtplib
 from email.message import EmailMessage
 from email.utils import formataddr
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
+from cryptography.fernet import Fernet
 from fastapi import HTTPException
 
 logger = logging.getLogger("clara.email")
+
+
+def _get_fernet():
+    key = os.environ.get("TOKEN_ENCRYPTION_KEY")
+    if not key:
+        raise RuntimeError("TOKEN_ENCRYPTION_KEY is not configured")
+    return Fernet(key.encode())
+
+
+def encrypt_secret(value: str) -> str:
+    return _get_fernet().encrypt(value.encode()).decode()
+
+
+def decrypt_secret(value: str) -> str:
+    if not value:
+        return ""
+    return _get_fernet().decrypt(value.encode()).decode()
 
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
@@ -200,3 +219,113 @@ def reset_email_html(name, reset_url):
         'Clara Campaigns · We never ask for your password by email.'
         '</td></tr></table></td></tr></table>'
     )
+
+
+
+async def send_newsletter_via_smtp(*, cfg, subject, html, to_email, to_name=None):
+    """Send a single newsletter email through a company's own SMTP server.
+    cfg keys: host, port, security (ssl|starttls|none), username, password,
+    from_email, from_name."""
+    from_email = cfg["from_email"]
+    from_name = cfg.get("from_name") or from_email
+    msg = EmailMessage()
+    msg["From"] = formataddr((from_name, from_email))
+    msg["To"] = formataddr((to_name, to_email)) if to_name else to_email
+    msg["Subject"] = subject
+    msg.set_content("Please view this email in an HTML-capable email client.")
+    msg.add_alternative(html, subtype="html")
+
+    security = (cfg.get("security") or "starttls").lower()
+    use_tls = security in ("ssl", "tls")           # implicit TLS (usually port 465)
+    do_starttls = security == "starttls"           # upgrade after connect (usually 587)
+    port = int(cfg.get("port") or (465 if use_tls else 587))
+
+    smtp = aiosmtplib.SMTP(
+        hostname=cfg["host"], port=port,
+        use_tls=use_tls, start_tls=False, timeout=30,
+    )
+    await smtp.connect()
+    try:
+        if do_starttls:
+            await smtp.starttls()
+        if cfg.get("username"):
+            await smtp.login(cfg["username"], cfg.get("password") or "")
+        await smtp.send_message(msg)
+    finally:
+        if smtp.is_connected:
+            await smtp.quit()
+
+
+async def smtp_test_connection(cfg):
+    """Verify SMTP credentials by connecting + logging in (no email sent).
+    Returns None on success, raises on failure."""
+    security = (cfg.get("security") or "starttls").lower()
+    use_tls = security in ("ssl", "tls")
+    do_starttls = security == "starttls"
+    port = int(cfg.get("port") or (465 if use_tls else 587))
+    smtp = aiosmtplib.SMTP(hostname=cfg["host"], port=port, use_tls=use_tls, start_tls=False, timeout=20)
+    await smtp.connect()
+    try:
+        if do_starttls:
+            await smtp.starttls()
+        if cfg.get("username"):
+            await smtp.login(cfg["username"], cfg.get("password") or "")
+    finally:
+        if smtp.is_connected:
+            await smtp.quit()
+
+
+def personalize_html(html: str, track_id: str, backend_url: str, company: dict = None, public_base: str = None, unsub_url: str = None) -> str:
+    """Rewrite links for click tracking, inject open pixel and a branded footer."""
+    def repl(m):
+        quote_char = m.group(1)
+        url = m.group(2)
+        if url.startswith("#") or url.startswith("mailto:") or "track/click" in url:
+            return m.group(0)
+        tracked = f"{backend_url}/api/track/click/{track_id}?u={quote(url, safe='')}"
+        return f"href={quote_char}{tracked}{quote_char}"
+
+    html = re.sub(r'href=(["\'])(.*?)\1', repl, html, flags=re.IGNORECASE)
+
+    company = company or {}
+    public_base = public_base or "https://campaigns.koodh.com"
+    website = (company.get("website") or "").strip()
+    cid = str(company.get("_id")) if company.get("_id") else None
+    logo_img = ""
+    if company.get("logo_url"):
+        logo_img = (f'<img src="{company.get("logo_url")}" alt="{_html.escape(company.get("name",""))}" '
+                    f'width="120" style="max-width:120px;height:auto;display:inline-block;border:0;margin:0 auto 10px;" />')
+    elif company.get("logo_path") and cid:
+        logo_img = (f'<img src="{backend_url}/api/company/{cid}/logo" alt="{_html.escape(company.get("name",""))}" '
+                    f'width="120" style="max-width:120px;height:auto;display:inline-block;border:0;margin:0 auto 10px;" />')
+    website_link = (f'<a href="{website}" style="color:#94A3B8;text-decoration:none;">{_html.escape(website)}</a><br/>'
+                    if website else "")
+    unsub_url = unsub_url or f"{backend_url}/api/unsubscribe/{track_id}"
+    prefs_url = company.get("subscribe_url") or (f"{public_base}/subscribe/{company.get('api_key')}" if company.get("api_key") else None)
+    prefs_btn = (
+        f'<a href="{prefs_url}" style="display:inline-block;margin:0 0 12px;padding:9px 20px;'
+        f'background:{company.get("brand_primary") or "#7380b6"};color:#ffffff;border-radius:9999px;'
+        f'text-decoration:none;font-size:13px;font-weight:600;">Manage your preferences</a><br/>'
+        if prefs_url else "")
+    clara_brand = (
+        f'<a href="{public_base}" style="text-decoration:none;color:#64748B;display:inline-block;margin:2px 0;">'
+        f'<img src="{CLARA_MARK}" width="16" height="16" alt="Clara Campaigns" '
+        f'style="vertical-align:middle;border:0;display:inline-block;margin-right:6px;width:16px;height:16px;" />'
+        f'<span style="vertical-align:middle;font-weight:700;color:#64748B;">Clara Campaigns</span></a>'
+    )
+    footer = (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+        '<td align="center" style="padding:22px 24px 8px;font-family:\'Segoe UI\',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">'
+        f'{logo_img}{prefs_btn}{website_link}'
+        f'<span style="color:#94A3B8;">Sent with </span>{clara_brand}<br/>'
+        f'<a href="{unsub_url}" style="color:#94A3B8;text-decoration:underline;">Unsubscribe from these emails</a>'
+        '</td></tr></table>'
+    )
+    pixel = f'<img src="{backend_url}/api/track/open/{track_id}" width="1" height="1" alt="" style="display:none" />'
+    inject = footer + pixel
+    if "</body>" in html.lower():
+        idx = html.lower().rfind("</body>")
+        html = html[:idx] + inject + html[idx:]
+    else:
+        html = html + inject
+    return html

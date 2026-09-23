@@ -15,7 +15,7 @@ const PLANS = [
   {
     id: "pro", name: "Pro", price: "Custom", cadence: "per month", icon: Sparkles, paid: true, popular: true,
     tagline: "For growing newsletters.",
-    features: ["30 campaigns per month", "Microsoft 365 sending", "Categories & segments", "Subscribe form & API", "Priority email support"],
+    features: ["30 campaigns per month", "SMTP sending", "Categories & segments", "Subscribe form & API", "Priority email support"],
   },
   {
     id: "enterprise", name: "Enterprise", price: "Custom", cadence: "tailored", icon: Rocket, paid: true,

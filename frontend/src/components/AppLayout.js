@@ -22,7 +22,7 @@ const BASE_NAV = [
   { to: "/contacts", label: "Contacts" },
   { to: "/branding", label: "Branding" },
   { to: "/developers", label: "API" },
-  { to: "/integrations", label: "Microsoft 365" },
+  { to: "/integrations", label: "E-mail / SMTP" },
 ];
 
 function WorkspaceSwitcher() {
@@ -214,7 +214,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mailbox, setMailbox] = useState(null);
+  const [smtp, setSmtp] = useState(null);
   const [apiCfg, setApiCfg] = useState(null);
   const [branding, setBranding] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -247,7 +247,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   }, [user, location.pathname]);
 
   useEffect(() => {
-    api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
+    api.get("/company/smtp").then((r) => setSmtp(r.data)).catch(() => {});
     api.get("/subscribe/settings").then((r) => setApiCfg(r.data)).catch(() => {});
     api.get("/company/branding").then((r) => setBranding(r.data)).catch(() => {});
   }, []);
@@ -256,7 +256,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   const setupOk = {
     "/branding": !!branding?.has_logo,
     "/developers": !!(apiCfg?.connected || apiCfg?.website),
-    "/integrations": !!mailbox?.connected,
+    "/integrations": !!smtp?.configured,
   };
 
   const NAV = user?.role === "admin"
@@ -350,18 +350,18 @@ export default function AppLayout({ children, title, subtitle, actions }) {
 
       <motion.main key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }} className="max-w-[1400px] mx-auto px-6 py-8">
-        {mailbox && !mailbox.connected && location.pathname !== "/integrations" && (
+        {smtp && !smtp.configured && location.pathname !== "/integrations" && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
             data-testid="simulation-banner" className="mb-6 flex items-center gap-4 bg-white/70 backdrop-blur-md rounded-2xl clara-soft px-4 py-3.5 ring-1 ring-amber-100/70">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shrink-0">
               <AlertCircle className="h-[18px] w-[18px]" />
             </span>
             <div className="text-sm text-slate-600 flex-1 leading-snug">
-              <b className="text-slate-900">Simulation mode active.</b> Microsoft 365 isn't connected yet — campaigns are delivered as a preview only. Tracking &amp; analytics still work.
+              <b className="text-slate-900">Simulatiemodus actief.</b> Er is nog geen SMTP-server ingesteld — campagnes worden alleen als voorbeeld verstuurd. Tracking &amp; statistieken werken wel.
             </div>
             <button onClick={() => navigate("/integrations")}
               className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-full px-4 py-2 clara-trans">
-              Connect
+              Instellen
             </button>
           </motion.div>
         )}

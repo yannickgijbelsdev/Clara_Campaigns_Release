@@ -20,7 +20,7 @@ export const TOURS = {
     { element: el("nav-campaigns"), popover: { title: "Campaigns tab", description: "Create, edit, send and track all your newsletters here.", side: "bottom", align: "start" } },
     { element: el("nav-contacts"), popover: { title: "Contacts tab", description: "Manage your recipients, groups and CSV import/export.", side: "bottom", align: "start" } },
     { element: el("nav-branding"), popover: { title: "Branding tab", description: "Set the logo, colours and website that appear in every email.", side: "bottom", align: "start" } },
-    { element: el("nav-integrations"), popover: { title: "Microsoft 365 tab", description: "Connect your mailbox so newsletters send from your own address.", side: "bottom", align: "start" } },
+    { element: el("nav-integrations"), popover: { title: "E-mail / SMTP tab", description: "Set up your SMTP server so newsletters send from your own address.", side: "bottom", align: "start" } },
     { element: el("global-search-btn"), popover: { title: "Search button", description: "Find any campaign or contact instantly. Tip: press ⌘K / Ctrl+K anywhere.", side: "bottom", align: "end" } },
     { element: el("help-tour-btn"), popover: { title: "Help button", description: "That's me! Tap this ? on any page to replay its tour.", side: "bottom", align: "end" } },
     { element: el("user-menu-btn"), popover: { title: "Your account", description: "Open your profile photo, password, two-factor settings and sign out.", side: "bottom", align: "end" } },
@@ -71,9 +71,9 @@ export const TOURS = {
   ],
 
   "/integrations": [
-    { popover: { title: "Microsoft 365", description: "Connect your mailbox to send real emails from your own address." } },
-    { element: el("connect-o365-btn"), popover: { title: "Connect button", description: "Authorises Clara with Microsoft. Until connected, sends run safely in simulation mode (no real emails, tracking still works).", side: "bottom", align: "start" } },
-    { element: el("disconnect-o365"), popover: { title: "Disconnect button", description: "Unlinks your mailbox again whenever you want.", side: "bottom", align: "start" } },
+    { popover: { title: "E-mail / SMTP", description: "Set up your own SMTP server to send real emails from your own address." } },
+    { element: el("smtp-config-card"), popover: { title: "SMTP settings", description: "Enter your host, port, security, login and sender. Until it's set up, sends run safely in simulation mode (no real emails, tracking still works).", side: "bottom", align: "start" } },
+    { element: el("test-smtp-config"), popover: { title: "Test connection", description: "Check your SMTP credentials work before sending a real campaign.", side: "bottom", align: "start" } },
   ],
 
   "/settings": [

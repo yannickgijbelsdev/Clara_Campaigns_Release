@@ -146,10 +146,14 @@ class CompanyUpdateInput(BaseModel):
     name: str = Field(min_length=1, max_length=160)
 
 
-class MsConfigInput(BaseModel):
-    client_id: str = Field(default="", max_length=200)
-    client_secret: Optional[str] = Field(default=None, max_length=500)
-    tenant: str = Field(default="", max_length=200)
+class SmtpConfigInput(BaseModel):
+    host: str = Field(min_length=1, max_length=255)
+    port: int = Field(default=587, ge=1, le=65535)
+    security: str = Field(default="starttls", max_length=20)
+    username: str = Field(default="", max_length=320)
+    password: Optional[str] = Field(default=None, max_length=500)
+    from_email: EmailStr
+    from_name: str = Field(default="", max_length=160)
 
 
 class SendInput(BaseModel):

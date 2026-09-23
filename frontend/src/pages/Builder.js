@@ -414,7 +414,7 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
   const [selected, setSelected] = useState({});
   const [all, setAll] = useState(true);
   const [sending, setSending] = useState(false);
-  const [mailbox, setMailbox] = useState(null);
+  const [smtp, setSmtp] = useState(null);
   const [quota, setQuota] = useState(null);
   const [when, setWhen] = useState("now"); // now | schedule
   const [scheduleAt, setScheduleAt] = useState("");
@@ -424,7 +424,7 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
 
   useEffect(() => {
     api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
-    api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
+    api.get("/company/smtp").then((r) => setSmtp(r.data)).catch(() => {});
     api.get("/quota").then((r) => setQuota(r.data)).catch(() => {});
     api.get("/categories").then((r) => setAllCats(r.data)).catch(() => {});
   }, []);
@@ -447,7 +447,7 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
       const { data } = await api.post(`/campaigns/${campaignId}/send`, target);
       setProgress(true);
       const mode = data.mode;
-      setTimeout(() => toast.success(`Sent to ${data.recipients} recipient(s)${mode === "simulation" ? " (simulation)" : " via Microsoft 365"}`), 100);
+      setTimeout(() => toast.success(`Sent to ${data.recipients} recipient(s)${mode === "simulation" ? " (simulation)" : " via SMTP"}`), 100);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
       setSending(false);
@@ -490,9 +490,9 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
               <b className="capitalize">{quota.plan}</b> plan — unlimited sending.
             </div>
           )}
-          {mailbox && !mailbox.connected && (
+          {smtp && !smtp.configured && (
             <div className="mb-4 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-3">
-              Microsoft 365 is not connected. The campaign will be sent in <b>simulation mode</b> (tracking works, but no real email goes out). Connect your mailbox via Microsoft 365 to send for real.
+              Er is nog geen SMTP-server ingesteld. De campagne wordt in <b>simulatiemodus</b> verstuurd (tracking werkt, maar er gaat geen echte e-mail uit). Stel SMTP in bij <b>E-mail / SMTP</b> om echt te versturen.
             </div>
           )}
           <label className="flex items-center gap-2 mb-3 cursor-pointer">
@@ -570,7 +570,7 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
         open={progress}
         title="Sending your campaign"
         subtitle="Delivering to your recipients…"
-        steps={["Preparing your newsletter…", "Connecting to Microsoft 365…", "Queuing recipients…", "Tracking enabled — all set!"]}
+        steps={["Preparing your newsletter…", "Connecting to your SMTP server…", "Queuing recipients…", "Tracking enabled — all set!"]}
         onComplete={onSent}
       />
     </div>

@@ -22,14 +22,13 @@ from bson import ObjectId
 
 from db import db, client
 import auth as A
-import ms_graph as MS
 from models import (
     RegisterInput, LoginInput, MfaVerifyInput, ContactInput,
     CampaignInput, SendInput, ScheduleInput, CompanyInput,
     ForgotInput, ResetInput, MfaCodeInput, PasswordChangeInput,
     BrandingInput, AdminCompaniesInput, CategoryInput,
     SubscribeSettingsInput, PublicSubscribeInput, PlanRequestInput, now_iso,
-    AdminUserUpdateInput, CompanyUpdateInput, MsConfigInput,
+    AdminUserUpdateInput, CompanyUpdateInput, SmtpConfigInput,
 )
 import email_util
 import storage
@@ -812,90 +811,77 @@ async def admin_update_company(company_id: str, data: CompanyUpdateInput, user=D
     return {"ok": True, "name": data.name.strip()}
 
 
-@api.get("/admin/ms-config")
-async def get_ms_config(user=Depends(A.get_current_user)):
-    require_admin(user)
-    doc = await db.app_settings.find_one({"_id": "ms_graph"}) or {}
+def _company_smtp_cfg(company: dict):
+    """Return a decrypted SMTP config dict for sending, or None if not fully set."""
+    s = (company or {}).get("smtp") or {}
+    if not (s.get("host") and s.get("from_email") and s.get("password_enc")):
+        return None
+    try:
+        pw = email_util.decrypt_secret(s.get("password_enc", ""))
+    except Exception:
+        pw = ""
     return {
-        "client_id": doc.get("client_id") or os.environ.get("MS_CLIENT_ID") or "",
-        "tenant": doc.get("tenant") or os.environ.get("MS_TENANT") or "",
-        "has_secret": bool(doc.get("client_secret_enc") or os.environ.get("MS_CLIENT_SECRET")),
-        "configured": MS.is_configured(),
-        "system_mail_ready": MS.system_mail_ready(),
-        "redirect_uri": MS.redirect_uri_public(),
+        "host": s["host"], "port": s.get("port", 587),
+        "security": s.get("security", "starttls"),
+        "username": s.get("username", ""), "password": pw,
+        "from_email": s["from_email"], "from_name": s.get("from_name", ""),
     }
 
 
-@api.put("/admin/ms-config")
-async def set_ms_config(data: MsConfigInput, user=Depends(A.get_current_user)):
-    require_admin(user)
-    doc = await db.app_settings.find_one({"_id": "ms_graph"}) or {}
-    client_id = data.client_id.strip()
-    tenant = data.tenant.strip()
-    if not client_id or not tenant:
-        raise HTTPException(status_code=400, detail="Client ID and Tenant ID are required.")
-    update = {"client_id": client_id, "tenant": tenant, "updated_at": now_iso()}
-    if data.client_secret and data.client_secret.strip():
-        update["client_secret_enc"] = MS.encrypt_secret(data.client_secret.strip())
-        secret = data.client_secret.strip()
+@api.get("/company/smtp")
+async def get_company_smtp(s=Depends(scope)):
+    smtp = (s["company"] or {}).get("smtp") or {}
+    configured = bool(smtp.get("host") and smtp.get("from_email") and smtp.get("password_enc"))
+    return {
+        "host": smtp.get("host", ""),
+        "port": smtp.get("port", 587),
+        "security": smtp.get("security", "starttls"),
+        "username": smtp.get("username", ""),
+        "from_email": smtp.get("from_email", ""),
+        "from_name": smtp.get("from_name", ""),
+        "has_password": bool(smtp.get("password_enc")),
+        "configured": configured,
+    }
+
+
+@api.put("/company/smtp")
+async def set_company_smtp(data: SmtpConfigInput, s=Depends(scope)):
+    existing = (s["company"] or {}).get("smtp") or {}
+    if (data.security or "").lower() not in ("starttls", "ssl", "tls", "none"):
+        raise HTTPException(status_code=400, detail="Security must be starttls, ssl or none.")
+    update = {
+        "host": data.host.strip(), "port": int(data.port),
+        "security": data.security.lower(), "username": data.username.strip(),
+        "from_email": str(data.from_email).strip(), "from_name": (data.from_name or "").strip(),
+    }
+    if data.password and data.password.strip():
+        update["password_enc"] = email_util.encrypt_secret(data.password.strip())
+    elif existing.get("password_enc"):
+        update["password_enc"] = existing["password_enc"]
     else:
-        secret = MS.decrypt_secret(doc.get("client_secret_enc", ""))
-    await db.app_settings.update_one({"_id": "ms_graph"}, {"$set": update}, upsert=True)
-    MS.set_creds(client_id, secret, tenant)
-    return {"ok": True, "configured": MS.is_configured(), "system_mail_ready": MS.system_mail_ready()}
+        raise HTTPException(status_code=400, detail="A password is required.")
+    await db.companies.update_one({"_id": oid(s["company_id"])}, {"$set": {"smtp": update}})
+    return {"ok": True, "configured": True}
 
 
-@api.delete("/admin/ms-config")
-async def clear_ms_config(user=Depends(A.get_current_user)):
-    require_admin(user)
-    await db.app_settings.delete_one({"_id": "ms_graph"})
-    MS.set_creds(None, None, None)
+@api.delete("/company/smtp")
+async def clear_company_smtp(s=Depends(scope)):
+    await db.companies.update_one({"_id": oid(s["company_id"])}, {"$unset": {"smtp": ""}})
     return {"ok": True}
-@api.get("/oauth/microsoft/start")
-async def ms_start(user=Depends(A.get_current_user)):
-    if not MS.is_configured():
-        return {"configured": False}
-    state = secrets.token_urlsafe(32)
-    flow = MS.build_auth_flow(state)
-    if "auth_uri" not in flow:
-        raise HTTPException(status_code=500, detail="Could not create Microsoft authorization request")
-    await db.oauth_states.insert_one({
-        "_id": state, "user_id": user["id"], "flow": flow, "created_at": datetime.now(timezone.utc)})
-    return {"configured": True, "authorization_url": flow["auth_uri"]}
 
 
-@api.get("/oauth/microsoft/callback")
-async def ms_callback(code: str = Query(None), state: str = Query(None), error: str = Query(None)):
-    frontend = os.environ.get("PUBLIC_BASE_URL") or os.environ["FRONTEND_URL"]
-    if error:
-        return RedirectResponse(f"{frontend}/integrations?error={error}")
-    record = await db.oauth_states.find_one_and_delete({"_id": state})
-    if not record:
-        return RedirectResponse(f"{frontend}/integrations?error=invalid_state")
-    result, cache = MS.redeem_code(record["flow"], code, state)
-    if "access_token" not in result:
-        return RedirectResponse(f"{frontend}/integrations?error=token_exchange_failed")
-    claims = result.get("id_token_claims", {})
-    email = claims.get("preferred_username") or claims.get("email") or ""
-    await MS.save_cache(record["user_id"], cache, email=email)
-    return RedirectResponse(f"{frontend}/integrations?connected=1")
-
-
-@api.get("/mailbox")
-async def mailbox_status(user=Depends(A.get_current_user)):
-    if not MS.is_configured():
-        return {"configured": False, "connected": False}
-    row = await db.mailboxes.find_one({"user_id": user["id"]})
-    token = await MS.get_access_token(user["id"]) if row else None
-    return {"configured": True, "connected": bool(token),
-            "email": row.get("email") if row else None,
-            "needs_reauth": bool(row) and not token}
-
-
-@api.delete("/mailbox")
-async def mailbox_disconnect(user=Depends(A.get_current_user)):
-    await db.mailboxes.delete_one({"user_id": user["id"]})
+@api.post("/company/smtp/test")
+async def test_company_smtp(s=Depends(scope)):
+    company = await db.companies.find_one({"_id": oid(s["company_id"])})
+    cfg = _company_smtp_cfg(company)
+    if not cfg:
+        raise HTTPException(status_code=400, detail="Save your SMTP settings first (including a password).")
+    try:
+        await email_util.smtp_test_connection(cfg)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"SMTP connection failed: {str(exc)[:200]}")
     return {"ok": True}
+
 
 
 # ============ CONTACTS ============
@@ -1035,23 +1021,10 @@ async def delete_campaign(campaign_id: str, s=Depends(scope)):
     return {"ok": True}
 
 
-async def _run_send(campaign, contacts, user_id, company_id, real, token, sender, company=None):
+async def _run_send(campaign, contacts, user_id, company_id, real, smtp_cfg, company=None):
     backend = os.environ["BACKEND_URL"]
     public_base = os.environ.get("PUBLIC_BASE_URL") or backend
     cid = str(campaign["_id"])
-    # Prepare optional logo attachment for real sends
-    attachments = None
-    if real and company and company.get("logo_path"):
-        try:
-            content, ctype = MS_storage_logo(company)
-            import base64 as _b64
-            ext = "png"
-            if "jpeg" in ctype or "jpg" in ctype:
-                ext = "jpg"
-            attachments = [{"name": f"logo.{ext}", "content_type": ctype,
-                            "content_b64": _b64.b64encode(content).decode()}]
-        except Exception as exc:
-            logger.error(f"logo attachment failed: {exc}")
     for ct in contacts:
         track_id = uuid.uuid4().hex
         delivery = {
@@ -1064,19 +1037,17 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
         await db.deliveries.insert_one(delivery)
         unsub_url = f"{public_base}/api/unsubscribe/{A.make_unsub_token(company_id, str(ct['_id']))}"
         personalized = _apply_merge_tags(campaign.get("html", ""), ct)
-        html = MS.personalize_html(personalized, track_id, public_base, company, public_base, unsub_url)
+        html = email_util.personalize_html(personalized, track_id, public_base, company, public_base, unsub_url)
         try:
             if real:
-                await MS.send_mail(token, sender, campaign.get("subject", ""), html, ct["email"], delivery["name"], attachments)
-                await asyncio.sleep(1.0)
+                await email_util.send_newsletter_via_smtp(
+                    cfg=smtp_cfg, subject=campaign.get("subject", ""),
+                    html=html, to_email=ct["email"], to_name=delivery["name"])
+                await asyncio.sleep(0.5)
             await db.deliveries.update_one({"track_id": track_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
         except Exception as exc:
             await db.deliveries.update_one({"track_id": track_id}, {"$set": {"status": "failed", "error": str(exc)}})
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sent", "sent_at": now_iso()}})
-
-
-def MS_storage_logo(company):
-    return storage.get_object(company["logo_path"])
 
 
 _MERGE_RE = re.compile(r"\{\{\s*([a-zA-Z_]+)\s*(?:\|([^}]*?))?\s*\}\}")
@@ -1116,17 +1087,15 @@ async def _start_send(campaign, company_id, contact_ids, user, category_ids=None
     contacts = await db.contacts.find(q).to_list(10000)
     if not contacts:
         return {"error": "No recipients selected"}
-    token = await MS.get_access_token(user["id"])
-    real = bool(token)
-    row = await db.mailboxes.find_one({"user_id": user["id"]})
-    sender = (row.get("email") if row else None) or os.environ.get("EMAIL_SENDER") or user["email"]
     company = await db.companies.find_one({"_id": oid(company_id)})
+    smtp_cfg = _company_smtp_cfg(company)
+    real = bool(smtp_cfg)
     await db.deliveries.delete_many({"campaign_id": str(campaign["_id"])})
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sending"}})
     await db.send_events.insert_one({"user_id": user["id"], "company_id": company_id,
                                      "campaign_id": str(campaign["_id"]), "ts": now_iso()})
-    asyncio.create_task(_run_send(campaign, contacts, user["id"], company_id, real, token, sender, company))
-    return {"ok": True, "recipients": len(contacts), "mode": "office365" if real else "simulation"}
+    asyncio.create_task(_run_send(campaign, contacts, user["id"], company_id, real, smtp_cfg, company))
+    return {"ok": True, "recipients": len(contacts), "mode": "smtp" if real else "simulation"}
 
 
 @api.post("/campaigns/{campaign_id}/send")
@@ -1409,10 +1378,6 @@ async def startup():
         await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD", "yannick.gijbels@koodh.com", "KYLovie13monx")
     except Exception as exc:
         logger.error(f"admin seed failed (continuing): {exc}")
-    try:
-        await MS.load_ms_creds_from_db()
-    except Exception as exc:
-        logger.error(f"MS creds load failed (continuing): {exc}")
     asyncio.create_task(_scheduler_loop())
     logger.info("Clara Campaigns backend started")
 
