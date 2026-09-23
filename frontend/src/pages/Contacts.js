@@ -4,7 +4,7 @@ import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History } from "lucide-react";
+import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History, Loader2, AlertTriangle } from "lucide-react";
 import { BearLoader } from "@/components/BearLoader";
 import { withMinDelay } from "@/lib/useLoadingGate";
 
@@ -19,13 +19,19 @@ export default function Contacts() {
   const [historyView, setHistoryView] = useState(null); // { contact, items }
   const [group, setGroup] = useState("all"); // all | subscribed | unsubscribed
   const [catMap, setCatMap] = useState({});
+  const [cats, setCats] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importCats, setImportCats] = useState({});
+  const [analysis, setAnalysis] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const confirm = useConfirm();
 
   const load = () => api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
   useEffect(() => {
     load();
     api.get("/categories").then((r) => {
+      setCats(r.data);
       const m = {}; r.data.forEach((c) => { m[c.id] = c.name; }); setCatMap(m);
     }).catch(() => {});
   }, []);
@@ -62,26 +68,51 @@ export default function Contacts() {
     load();
   };
 
-  const onFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const pickedCatIds = () => Object.keys(importCats).filter((k) => importCats[k]);
+  const resetImport = () => { setImportFile(null); setImportCats({}); setAnalysis(null); };
+  const onFilePick = (e) => {
+    const f = e.target.files[0];
+    if (f) { setImportFile(f); setAnalysis(null); }
+    e.target.value = "";
+  };
+  const analyzeImport = async () => {
+    if (!importFile) return;
+    setAnalyzing(true);
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", importFile);
+    fd.append("category_ids", pickedCatIds().join(","));
+    fd.append("mode", "analyze");
+    try {
+      const { data } = await api.post("/contacts/import", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      if (data.duplicates > 0) setAnalysis(data);
+      else await runImport(false);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+    setAnalyzing(false);
+  };
+  const runImport = async (overwrite) => {
+    if (!importFile) return;
     const start = Date.now();
     setImporting(true);
+    const fd = new FormData();
+    fd.append("file", importFile);
+    fd.append("category_ids", pickedCatIds().join(","));
+    fd.append("overwrite", overwrite ? "true" : "false");
+    fd.append("mode", "import");
     try {
       const { data } = await withMinDelay(
         api.post("/contacts/import", fd, { headers: { "Content-Type": "multipart/form-data" } }),
         start, 4000);
-      toast.success(`${data.imported} imported, ${data.skipped} skipped`);
+      toast.success(`${data.imported} added, ${data.updated} updated, ${data.skipped} skipped`);
       setShowImport(false);
+      resetImport();
       load();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     } finally {
       setImporting(false);
     }
-    e.target.value = "";
   };
 
   const exportCsv = () => {
@@ -238,14 +269,67 @@ export default function Contacts() {
       )}
 
       {showImport && (
-        <Modal title="Import CSV" onClose={() => setShowImport(false)}>
-          <div data-testid="csv-dropzone" onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-slate-300 rounded-xl p-10 text-center cursor-pointer hover:border-rose-400 hover:bg-rose-50/40 transition-colors">
-            <FileSpreadsheet className="h-10 w-10 mx-auto mb-3 text-slate-400" />
-            <p className="text-sm text-slate-600 font-medium">Click to choose a CSV file</p>
-            <p className="text-xs text-slate-400 mt-1">Columns: email, first_name, last_name, company, tags</p>
-            <input ref={fileRef} data-testid="csv-file-input" type="file" accept=".csv" className="hidden" onChange={onFile} />
-          </div>
+        <Modal title="Import CSV" onClose={() => { setShowImport(false); resetImport(); }}>
+          {!analysis ? (
+            <div className="space-y-4">
+              <div data-testid="csv-dropzone" onClick={() => fileRef.current?.click()}
+                className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-rose-400 hover:bg-rose-50/40 transition-colors">
+                <FileSpreadsheet className="h-9 w-9 mx-auto mb-2 text-slate-400" />
+                {importFile
+                  ? <p className="text-sm text-slate-800 font-medium" data-testid="csv-filename">{importFile.name}</p>
+                  : <p className="text-sm text-slate-600 font-medium">Click to choose a CSV file</p>}
+                <p className="text-xs text-slate-400 mt-1">Columns: email, first_name, last_name, company, tags</p>
+                <input ref={fileRef} data-testid="csv-file-input" type="file" accept=".csv" className="hidden" onChange={onFilePick} />
+              </div>
+
+              {cats.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">Assign tags to imported contacts (optional)</div>
+                  <div className="flex flex-wrap gap-2">
+                    {cats.map((c) => {
+                      const on = !!importCats[c.id];
+                      return (
+                        <button key={c.id} type="button" data-testid={`import-cat-${c.id}`}
+                          onClick={() => setImportCats({ ...importCats, [c.id]: !on })}
+                          className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full transition-colors ${on ? "bg-[#7380b6] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                          <span className="h-2 w-2 rounded-full" style={{ background: on ? "#fff" : c.color }} /> {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <button data-testid="start-import-btn" onClick={analyzeImport} disabled={!importFile || analyzing}
+                className="w-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium px-4 py-2.5 rounded-full flex items-center justify-center gap-2 disabled:opacity-50">
+                {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Import
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4" data-testid="import-overwrite-prompt">
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-700">
+                  <b>{analysis.duplicates} contact(s)</b> in this file already exist.
+                  {analysis.new > 0 && <> {analysis.new} new contact(s) will be added.</>}
+                  <p className="mt-1 text-slate-500">
+                    Do you want to overwrite the existing contacts with the new data{pickedCatIds().length ? " and apply the selected tags" : ""}?
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button data-testid="import-overwrite-btn" onClick={() => runImport(true)} disabled={importing}
+                  className="w-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium px-4 py-2.5 rounded-full disabled:opacity-50">
+                  Overwrite existing ({analysis.duplicates})
+                </button>
+                <button data-testid="import-skip-btn" onClick={() => runImport(false)} disabled={importing}
+                  className="w-full border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2.5 rounded-full disabled:opacity-50">
+                  Skip existing, add {analysis.new} new
+                </button>
+                <button onClick={() => setAnalysis(null)} className="text-xs text-slate-400 hover:text-slate-600 mt-1">Back</button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
 

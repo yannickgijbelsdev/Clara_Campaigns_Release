@@ -15,6 +15,23 @@ const STATUS = {
   failed: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
+function CampaignThumb({ html, name }) {
+  if (!html) {
+    return (
+      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#7380b6] to-[#5866a0] text-white flex items-center justify-center font-display font-bold text-lg shrink-0">
+        {(name || "?").slice(0, 1).toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    <div data-testid="campaign-thumb" className="h-12 w-12 rounded-2xl overflow-hidden border border-slate-200 bg-white shrink-0 relative">
+      <iframe title="preview" srcDoc={html} tabIndex={-1} scrolling="no" aria-hidden="true"
+        className="pointer-events-none border-0"
+        style={{ width: "600px", height: "600px", transform: "scale(0.08)", transformOrigin: "top left" }} />
+    </div>
+  );
+}
+
 export default function Campaigns() {
   const [items, setItems] = useState([]);
   const navigate = useNavigate();
@@ -52,9 +69,7 @@ export default function Campaigns() {
             <motion.div key={c.id} data-testid={`campaign-card-${c.id}`}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
               className="bg-white rounded-3xl clara-soft clara-hover clara-trans p-4 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center font-display font-bold text-lg shrink-0">
-                {c.name.slice(0, 1).toUpperCase()}
-              </div>
+              <CampaignThumb html={c.html} name={c.name} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2.5">
                   <h3 className="font-display font-semibold text-slate-900 truncate">{c.name}</h3>

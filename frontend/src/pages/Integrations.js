@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Loader2, Save, Server, Send, Trash2, BookOpen } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Loader2, Save, Server, Send, Trash2, BookOpen, Clock } from "lucide-react";
 
 const SECURITY_OPTIONS = [
   { value: "starttls", label: "STARTTLS (port 587)" },
@@ -18,19 +18,36 @@ const PRESETS = [
 
 const EMPTY = { host: "", port: 587, security: "starttls", username: "", password: "", from_email: "", from_name: "", has_password: false, configured: false };
 
+const TIMEZONES = (typeof Intl.supportedValuesOf === "function")
+  ? Intl.supportedValuesOf("timeZone")
+  : ["UTC", "Europe/Brussels", "Europe/Amsterdam", "Europe/London", "Europe/Paris", "Europe/Berlin", "America/New_York", "America/Los_Angeles", "Asia/Dubai", "Asia/Kolkata", "Asia/Singapore", "Australia/Sydney"];
+
 export default function Integrations() {
   const [cfg, setCfg] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [timezone, setTimezone] = useState("UTC");
+  const [savingTz, setSavingTz] = useState(false);
 
   const load = () =>
     api.get("/company/smtp")
-      .then((r) => setCfg({ ...EMPTY, ...r.data, password: "" }))
+      .then((r) => { setCfg({ ...EMPTY, ...r.data, password: "" }); setTimezone(r.data.timezone || "UTC"); })
       .catch(() => {})
       .finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
+
+  const saveTimezone = async () => {
+    setSavingTz(true);
+    try {
+      await api.put("/company/timezone", { timezone });
+      toast.success("Timezone saved");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+    setSavingTz(false);
+  };
 
   const set = (k, v) => setCfg((c) => ({ ...c, [k]: v }));
 
@@ -196,6 +213,29 @@ export default function Integrations() {
               </>
             )}
           </div>
+        </div>
+
+        <div className="mt-5 bg-white rounded-xl border border-slate-200 shadow-sm p-6" data-testid="timezone-card">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-[#7380b6]/10 flex items-center justify-center shrink-0">
+              <Clock className="h-5 w-5 text-[#7380b6]" />
+            </div>
+            <div>
+              <h3 className="font-display font-semibold text-slate-900">Timezone</h3>
+              <p className="text-sm text-slate-500">Scheduled sends and displayed times use this workspace timezone.</p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select data-testid="timezone-select" value={timezone} onChange={(e) => setTimezone(e.target.value)}
+              className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6] bg-white">
+              {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+            </select>
+            <button data-testid="save-timezone" onClick={saveTimezone} disabled={savingTz}
+              className="inline-flex items-center justify-center gap-2 bg-[#7380b6] hover:bg-[#616fa6] text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors disabled:opacity-60">
+              {savingTz ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Current: <b>{timezone}</b> · {new Date().toLocaleString("en-US", { timeZone: timezone, timeStyle: "short", dateStyle: "medium" })}</p>
         </div>
 
         <div className="mt-5 bg-white rounded-xl border border-slate-200 shadow-sm p-6">

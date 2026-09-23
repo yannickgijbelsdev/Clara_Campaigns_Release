@@ -146,6 +146,10 @@ class CompanyUpdateInput(BaseModel):
     name: str = Field(min_length=1, max_length=160)
 
 
+class TimezoneInput(BaseModel):
+    timezone: str = Field(min_length=1, max_length=64)
+
+
 class SmtpConfigInput(BaseModel):
     host: str = Field(min_length=1, max_length=255)
     port: int = Field(default=587, ge=1, le=65535)

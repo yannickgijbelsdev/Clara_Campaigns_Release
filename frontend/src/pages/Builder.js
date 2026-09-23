@@ -443,11 +443,31 @@ function PreviewModal({ html, onClose }) {
   );
 }
 
+// Convert a wall-clock "YYYY-MM-DDTHH:mm" (intended in tz) to a UTC ISO string.
+function wallClockToUtcIso(wall, tz) {
+  if (!tz || tz === "UTC") return new Date(wall + ":00Z").toISOString();
+  const [d, t] = wall.split("T");
+  const [y, mo, da] = d.split("-").map(Number);
+  const [h, mi] = t.split(":").map(Number);
+  const guess = Date.UTC(y, mo - 1, da, h, mi);
+  const asTz = new Date(new Date(guess).toLocaleString("en-US", { timeZone: tz }));
+  const offset = asTz.getTime() - guess;
+  return new Date(guess - offset).toISOString();
+}
+function formatInTz(iso, tz) {
+  try {
+    return new Date(iso).toLocaleString("en-US", {
+      timeZone: tz, dateStyle: "medium", timeStyle: "short",
+    }) + ` (${tz})`;
+  } catch { return new Date(iso).toLocaleString(); }
+}
+
 function SendModal({ campaignId, html = "", onClose, onSent }) {
   const [contacts, setContacts] = useState([]);
   const [selected, setSelected] = useState({});
   const [all, setAll] = useState(true);
   const [sending, setSending] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [smtp, setSmtp] = useState(null);
   const [quota, setQuota] = useState(null);
   const [when, setWhen] = useState("now"); // now | schedule
@@ -463,7 +483,19 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
     api.get("/categories").then((r) => setAllCats(r.data)).catch(() => {});
   }, []);
 
+  const tz = smtp?.timezone || "UTC";
   const catIds = Object.keys(cats).filter((k) => cats[k]);
+
+  const sendTest = async () => {
+    setTesting(true);
+    try {
+      const { data } = await api.post(`/campaigns/${campaignId}/test`);
+      toast.success(`Test email sent to ${data.sent_to} — check your inbox!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+    setTesting(false);
+  };
 
   const doSend = async () => {
     setSending(true);
@@ -472,9 +504,9 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
     try {
       if (when === "schedule") {
         if (!scheduleAt) { toast.error("Please pick a date and time"); setSending(false); return; }
-        const iso = new Date(scheduleAt).toISOString();
+        const iso = wallClockToUtcIso(scheduleAt, tz);
         await api.post(`/campaigns/${campaignId}/schedule`, { ...target, scheduled_at: iso });
-        toast.success(`Campaign scheduled for ${new Date(scheduleAt).toLocaleString()}`);
+        toast.success(`Campaign scheduled for ${formatInTz(iso, tz)}`);
         onSent();
         return;
       }
@@ -584,14 +616,23 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${when === "schedule" ? "bg-white shadow-sm text-rose-600" : "text-slate-600"}`}>Schedule</button>
             </div>
             {when === "schedule" && (
-              <input data-testid="schedule-datetime" type="datetime-local" value={scheduleAt}
-                min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-                onChange={(e) => setScheduleAt(e.target.value)}
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none" />
+              <>
+                <input data-testid="schedule-datetime" type="datetime-local" value={scheduleAt}
+                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                  onChange={(e) => setScheduleAt(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none" />
+                <p className="text-xs text-slate-400 mt-1.5">Time is interpreted in your workspace timezone: <b>{tz}</b>. Change it under Email / SMTP.</p>
+              </>
             )}
           </div>
         </div>
-        <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-2">
+        <div className="px-5 py-4 border-t border-slate-200 flex items-center gap-2">
+          <button data-testid="send-test-btn" onClick={sendTest} disabled={testing || !campaignId}
+            className="px-4 py-2 text-sm border border-[#7380b6] text-[#7380b6] hover:bg-[#7380b6]/5 rounded-full flex items-center gap-2 disabled:opacity-50">
+            {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Send test to myself
+          </button>
+          <div className="flex-1" />
           <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
           <button data-testid="confirm-send-btn" onClick={doSend} disabled={sending || count === 0}
             className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center gap-2 disabled:opacity-50">

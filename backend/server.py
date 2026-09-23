@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Response, UploadFile, File, Query
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Response, UploadFile, File, Query, Form
 from fastapi.responses import RedirectResponse, Response as FastResponse
 from dotenv import load_dotenv
 from pathlib import Path
@@ -28,7 +28,7 @@ from models import (
     ForgotInput, ResetInput, MfaCodeInput, PasswordChangeInput,
     BrandingInput, AdminCompaniesInput, CategoryInput,
     SubscribeSettingsInput, PublicSubscribeInput, PlanRequestInput, now_iso,
-    AdminUserUpdateInput, CompanyUpdateInput, SmtpConfigInput,
+    AdminUserUpdateInput, CompanyUpdateInput, SmtpConfigInput, TimezoneInput,
 )
 import email_util
 import storage
@@ -858,6 +858,7 @@ async def get_company_smtp(s=Depends(scope)):
         "from_name": smtp.get("from_name", ""),
         "has_password": bool(smtp.get("password_enc")),
         "configured": configured,
+        "timezone": (s["company"] or {}).get("timezone") or "UTC",
     }
 
 
@@ -964,7 +965,13 @@ async def contact_history(contact_id: str, s=Depends(scope)):
 
 
 @api.post("/contacts/import")
-async def import_contacts(file: UploadFile = File(...), s=Depends(scope)):
+async def import_contacts(
+    file: UploadFile = File(...),
+    category_ids: str = Form(""),
+    overwrite: bool = Form(False),
+    mode: str = Form("import"),
+    s=Depends(scope),
+):
     content = (await file.read()).decode("utf-8-sig", errors="ignore")
     reader = csv.DictReader(io.StringIO(content))
     if not reader.fieldnames:
@@ -976,26 +983,68 @@ async def import_contacts(file: UploadFile = File(...), s=Depends(scope)):
                 return row[k]
         return ""
 
-    imported, skipped = 0, 0
+    # Resolve which category ids are valid for this company.
+    wanted = [c.strip() for c in category_ids.split(",") if c.strip()]
+    valid_cats = []
+    if wanted:
+        found = await db.categories.find({
+            "company_id": s["company_id"],
+            "_id": {"$in": [oid(c) for c in wanted if ObjectId.is_valid(c)]},
+        }).to_list(200)
+        valid_cats = [str(c["_id"]) for c in found]
+
+    parsed = []
     for row in reader:
         email = (find_key(row, "email", "e-mail", "email address", "mail") or "").strip().lower()
         if not email or "@" not in email:
+            continue
+        parsed.append((email, row))
+
+    emails = list({e for e, _ in parsed})
+    existing = set()
+    if emails:
+        cur = await db.contacts.find(
+            {"company_id": s["company_id"], "email": {"$in": emails}}, {"email": 1}).to_list(100000)
+        existing = {d["email"] for d in cur}
+
+    dup_count = len([e for e in emails if e in existing])
+    new_count = len(emails) - dup_count
+
+    if mode == "analyze":
+        return {"total": len(parsed), "new": new_count, "duplicates": dup_count}
+
+    imported, updated, skipped = 0, 0, 0
+    seen = set()
+    for email, row in parsed:
+        if email in seen:
             skipped += 1
             continue
-        if await db.contacts.find_one({"company_id": s["company_id"], "email": email}):
-            skipped += 1
-            continue
+        seen.add(email)
         tags_raw = find_key(row, "tags", "tag") or ""
-        await db.contacts.insert_one({
-            "company_id": s["company_id"], "user_id": s["user"]["id"], "email": email,
+        fields = {
             "first_name": (find_key(row, "first_name", "firstname", "first name", "voornaam") or "").strip(),
             "last_name": (find_key(row, "last_name", "lastname", "last name", "achternaam") or "").strip(),
             "company": (find_key(row, "company", "bedrijf", "organization") or "").strip(),
             "tags": [t.strip() for t in tags_raw.split(",") if t.strip()],
-            "status": "subscribed", "source": "imported", "created_at": now_iso(),
-        })
-        imported += 1
-    return {"imported": imported, "skipped": skipped}
+        }
+        if email in existing:
+            if not overwrite:
+                skipped += 1
+                continue
+            update = {"$set": fields}
+            if valid_cats:
+                update["$addToSet"] = {"categories": {"$each": valid_cats}}
+            await db.contacts.update_one({"company_id": s["company_id"], "email": email}, update)
+            updated += 1
+        else:
+            await db.contacts.insert_one({
+                "company_id": s["company_id"], "user_id": s["user"]["id"], "email": email,
+                **fields, "categories": valid_cats,
+                "status": "subscribed", "source": "imported", "created_at": now_iso(),
+            })
+            existing.add(email)
+            imported += 1
+    return {"imported": imported, "updated": updated, "skipped": skipped}
 
 
 # ============ CAMPAIGNS ============
@@ -1148,6 +1197,41 @@ async def send_campaign(campaign_id: str, data: SendInput, s=Depends(scope)):
     if res.get("error"):
         raise HTTPException(status_code=400, detail=res["error"])
     return res
+
+
+@api.post("/campaigns/{campaign_id}/test")
+async def send_test_campaign(campaign_id: str, s=Depends(scope)):
+    campaign = await db.campaigns.find_one({"_id": oid(campaign_id), "company_id": s["company_id"]})
+    if not campaign or not campaign.get("html"):
+        raise HTTPException(status_code=400, detail="Campaign has no content yet.")
+    company = await db.companies.find_one({"_id": oid(s["company_id"])})
+    cfg = _company_smtp_cfg(company)
+    if not cfg:
+        raise HTTPException(status_code=400, detail="Set up your SMTP server first (Email / SMTP) to send a test email.")
+    to = s["user"].get("email")
+    if not to:
+        raise HTTPException(status_code=400, detail="Your account has no email address.")
+    public_base = os.environ.get("PUBLIC_BASE_URL") or os.environ["BACKEND_URL"]
+    track_id = uuid.uuid4().hex
+    name = s["user"].get("name") or ""
+    sample = {"first_name": name.split(" ")[0] if name else "", "last_name": "", "email": to}
+    html = _apply_merge_tags(campaign.get("html", ""), sample)
+    html = email_util.personalize_html(html, track_id, public_base, company, public_base, f"{public_base}/api/unsubscribe/test")
+    subject = "[TEST] " + (campaign.get("subject") or "Your newsletter")
+    try:
+        await email_util.send_newsletter_via_smtp(cfg=cfg, subject=subject, html=html, to_email=to, to_name=name or None)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Test send failed: {str(exc)[:200]}")
+    return {"ok": True, "sent_to": to}
+
+
+@api.put("/company/timezone")
+async def set_company_timezone(data: TimezoneInput, s=Depends(scope)):
+    tz = (data.timezone or "").strip()
+    if not tz or len(tz) > 64:
+        raise HTTPException(status_code=400, detail="Invalid timezone.")
+    await db.companies.update_one({"_id": oid(s["company_id"])}, {"$set": {"timezone": tz}})
+    return {"ok": True, "timezone": tz}
 
 
 @api.post("/campaigns/{campaign_id}/schedule")
