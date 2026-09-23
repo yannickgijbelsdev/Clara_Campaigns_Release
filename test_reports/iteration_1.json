@@ -1,0 +1,42 @@
+{
+  "summary": "Full backend + frontend testing of Clara Campaigns Dutch newsletter platform. Backend pytest: 15/16 tests passed (Auth register+MFA setup+second-login, brute-force behavior, contacts CRUD/duplicate/isolation/CSV import with dedup, campaigns CRUD/isolation, send simulation with async delivery + open/click tracking + stats + top_links, dashboard, mailbox+oauth 'not configured'). One backend test failed and it reveals a real security bug (see backend_issues). Frontend Playwright: login+MFA setup flow works (QR/secret visible, TOTP verify -> /dashboard), all sidebar nav (dashboard/campaigns/contacts/integrations/settings) works, contacts add + CSV modal work, builder add-block-title/text/button/image/logo + mode-html + save + send modal (confirm-send-btn) all work; office365 warning correctly shown in send modal.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/auth/login", "issue": "Brute-force lockout (5 attempts -> 429) is easily bypassable. The lockout key is `f\"{request.client.host}:{email}\"` but behind the Kubernetes ingress `request.client.host` rotates across multiple internal pod IPs (verified in mongo: keys `10.208.147.137:...` and `10.208.147.136:...` for the same email during a single test). Result: counters are spread across N pods so a single attacker can make 5*N wrong-password attempts before hitting 429. Fix: (a) key by email only, or (b) use `request.headers.get('x-forwarded-for', request.client.host).split(',')[0].strip()` for real client IP, ideally combined with email.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "/api/auth/register", "issue": "No rate limiting or CAPTCHA — anyone can spam-register accounts."},
+      {"endpoint": "/api/auth/login", "issue": "Response leaks 'Invalid email or password' vs 'Not authenticated' consistently — OK, but consider returning identical 401 detail for both to avoid user-enumeration."},
+      {"endpoint": "/api/track/open/{track_id} & /api/track/click/{track_id}", "issue": "Silently succeed (200 gif / redirect) for unknown track_ids — acceptable to avoid enumeration but no logging."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Builder default HTML template", "issue": "Default images point to https://via.placeholder.com/... which resolves to ERR_CONNECTION_CLOSED (via.placeholder.com is offline). Preview iframe and generated emails show broken images. Recommend replacing with data-URI placeholders or picsum.photos.", "selector": "iframe preview", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix brute-force lockout key so counters are not sharded across ingress pod IPs (use X-Forwarded-For or email-only key).",
+    "Replace via.placeholder.com URLs in Builder default HTML (broken domain).",
+    "Add rate-limit to /api/auth/register."
+  ],
+  "critical_code_review_comments": [
+    "server.py login() uses request.client.host for brute-force key — broken behind reverse proxy (see critical bug).",
+    "auth.py cookie: secure=True + samesite='none' is correct for cross-site preview, but will not be sent in http local dev. Fine here.",
+    "ms_graph.py: `fernet = Fernet(os.environ['TOKEN_ENCRYPTION_KEY'])` executes at import — startup crashes if env missing (defensive check via try/except would be nicer).",
+    "server.py _run_send() has `await asyncio.sleep(1.0)` only when real send succeeds, so simulation mode is fast — good.",
+    "personalize_html does not rewrite links inside srcset/style url() nor plain-text URLs — acceptable for MVP.",
+    "clean() correctly excludes _id, password_hash, totp_secret."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "15/16 (93.75%)", "frontend": "100% of tested flows"},
+  "test_credentials": "Fresh users registered per test run (email pattern test_*_<uuid>@example.com, password Password123!). Seeded admin admin@claracampaigns.com / Admin123! has MFA already enabled (secret unknown) — prefer registration flow for automated tests.",
+  "seed_data_creation": "backend_test.py registers ~4 disposable users per run (User A, User B, Brute, and one for register-login helper calls). Data is prefixed but not deleted after run — collections grow over time. Not blocking.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "backend_test.py runs under pytest-xdist -n 2 --dist loadscope (from /app/backend/pytest.ini) so classes are pinned to workers. Emails are lowercased server-side so tests use lowercase locally. MongoDB URL mongodb://localhost:27017 db=test_database. To reproduce brute-force lockout bug: `mongosh test_database --eval 'db.login_attempts.find().toArray()'` shows counters keyed by different pod IPs for the same email.",
+  "rca of the issue": "Brute-force lockout bug: the lockout counter document _id is `<client_host>:<email>`. In the Kubernetes preview cluster the FastAPI service sits behind an ingress that connects from different internal IPs (multiple ingress pods / kube-proxy load-balancing). Each request's `request.client.host` is therefore the immediate connection IP of the ingress pod (not the end-user IP), and that IP rotates. Counters are sharded across N distinct documents, so a real attacker (or the test) never hits the 5-strike threshold on a single key and the 429 is never raised. Reproduction: register a user, POST 5 bad-password logins, then a 6th — status stays 401. Fix: parse X-Forwarded-For or drop the IP entirely from the key."
+}

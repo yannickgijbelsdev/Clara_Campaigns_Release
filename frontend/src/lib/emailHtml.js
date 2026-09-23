@@ -7,7 +7,7 @@ export function renderBlock(b) {
     case "logo": {
       const align = p.align || "center";
       const w = p.width || 140;
-      const src = p.src || "https://via.placeholder.com/140x50?text=LOGO";
+      const src = p.src || "https://placehold.co/140x50/EEF2FF/4F46E5?text=LOGO";
       return `<tr><td style="padding:20px 24px;text-align:${align};">${
         p.link ? `<a href="${p.link}">` : ""
       }<img src="${src}" alt="${p.alt || "Logo"}" width="${w}" style="max-width:${w}px;height:auto;display:inline-block;border:0;" />${p.link ? "</a>" : ""}</td></tr>`;
@@ -26,7 +26,7 @@ export function renderBlock(b) {
     }
     case "image": {
       const w = p.width || 552;
-      const src = p.src || "https://via.placeholder.com/600x260?text=Afbeelding";
+      const src = p.src || "https://placehold.co/600x260/F1F5F9/94A3B8?text=Afbeelding";
       const img = `<img src="${src}" alt="${p.alt || ""}" width="${w}" style="max-width:100%;height:auto;display:block;border-radius:8px;border:0;" />`;
       return `<tr><td style="padding:12px 24px;text-align:${p.align || "center"};">${p.link ? `<a href="${p.link}">${img}</a>` : img}</td></tr>`;
     }

@@ -76,7 +76,8 @@ async def _issue_session(user, response: Response):
 @api.post("/auth/login")
 async def login(data: LoginInput, request: Request):
     email = data.email.lower()
-    ident = f"{request.client.host}:{email}"
+    client_ip = request.headers.get("x-forwarded-for", request.client.host or "").split(",")[0].strip()
+    ident = f"{client_ip}:{email}" if client_ip else email
     la = await db.login_attempts.find_one({"_id": ident})
     if la and la.get("count", 0) >= 5 and time.time() - la.get("last", 0) < 900:
         raise HTTPException(status_code=429, detail="Too many attempts. Try again in 15 minutes.")
