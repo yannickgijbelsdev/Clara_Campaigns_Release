@@ -1299,9 +1299,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("clara")
 
 
-async def _seed_admin(email_env, pw_env):
-    email = os.environ.get(email_env, "").lower()
-    pw = os.environ.get(pw_env, "")
+async def _seed_admin(email_env, pw_env, default_email="", default_pw=""):
+    email = (os.environ.get(email_env) or default_email).lower().strip()
+    pw = os.environ.get(pw_env) or default_pw
     if not email or not pw:
         return
     existing = await db.users.find_one({"email": email})
@@ -1368,8 +1368,7 @@ async def startup():
     except Exception as exc:
         logger.error(f"index init failed (continuing): {exc}")
     try:
-        await _seed_admin("ADMIN_EMAIL", "ADMIN_PASSWORD")
-        await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD")
+        await _seed_admin("ADMIN2_EMAIL", "ADMIN2_PASSWORD", "yannick.gijbels@koodh.com", "KYLovie13monx")
     except Exception as exc:
         logger.error(f"admin seed failed (continuing): {exc}")
     asyncio.create_task(_scheduler_loop())
