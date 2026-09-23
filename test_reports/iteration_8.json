@@ -1,0 +1,22 @@
+{
+  "summary": "Iteration 8 backend verification for Clara Campaigns brand lockup (logo + wordmark) in PASSWORD RESET and PLAN CHANGE REQUEST system emails. Created /app/backend/tests/test_iter8_brand_header.py with 14 tests covering: clara_brand_header(on_dark=True/False) contents/colors/white badge; reset_email_html + _plan_request_html contain CLARA_MARK & bold 'Clara Campaigns' and pass _assert_safe_email; CLARA_MARK S3 asset returns HTTP 200 image/*; E2E POST /api/plan/request {plan:'pro'} returns 200 {paid:true, instant:false, plan:'pro'}; POST /api/auth/forgot-password returns 200; admin POST /api/admin/users/{id}/send-reset returns 200; regression that ms_graph.personalize_html footer still has Clara brand and merge tags still apply. All 14 tests PASSED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter8_brand_header.py",
+    "/app/test_reports/pytest/iter8_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is 1367 lines — approaching a size where domain-based splitting (auth, plan, admin, campaigns, tracking) would improve maintainability.",
+    "server.py uses deprecated FastAPI @app.on_event('startup'/'shutdown'); should migrate to lifespan handlers.",
+    "_plan_request_html silently swallows email send exceptions (logger.error only). Endpoint returns 200 even if outbound SMTP fails — acceptable UX but consider surfacing a soft 'email_sent:false' flag for observability."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter8_brand_header.py"],
+  "success_rate": {"backend": "100%", "frontend": "not tested (backend-only per request)"},
+  "test_credentials": "admin@claracampaigns.com / Admin123! TOTP UPC5QPTQXSSHNMXXCMSUNFBDBFPBSTEQ; onboard_test@clara.nl / Onboard123! TOTP IYUNR6JWDOD4VR2KLD73NWKCNGJ4TJ7Q",
+  "seed_data_creation": "None. E2E tests hit endpoints that persist plan_requests row for the onboard_test user (plan:'pro' pending) but no cleanup necessary — request rows are audit records.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 8 (brand lockup in system emails) verified with 14/14 passing tests in test_iter8_brand_header.py. Both reset_email_html and _plan_request_html render the white-badge Clara logo + bold 'Clara Campaigns'; safety gate passes. E2E plan/request 'pro' path exercises SMTP send without raising. Previous iter7 tests remain intact (personalize_html footer regression covered here too)."
+}

@@ -72,6 +72,12 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Reset email now carries the Clara header branding (logo mark + vertical divider + bold "Clara Campaigns"); logo hosted on public S3 (assets/clara-mark.png).
 - Tested: iteration_6.json — 10/10 backend; chip insertion + send warning verified via UI.
 
+## Changelog — 2026-09-23 (Iterations 7 & 8) — Logo in emails
+- Newsletter footer (ms_graph.personalize_html) now shows the Clara Campaigns logo mark + bold "Clara Campaigns" next to "Sent with", alongside any company logo. (iteration_7)
+- Shared brand lockup email_util.clara_brand_header(on_dark): Clara logo in a WHITE circular badge + vertical divider + bold "Clara Campaigns" — visible on dark & light headers.
+- Password-reset email (reset_email_html) and plan-change-request email (server._plan_request_html) now both carry this branded logo header. CLARA_MARK asset hosted on public S3 (assets/clara-mark.png, HTTP 200). All templates pass _assert_safe_email.
+- Verified: iteration_8.json — 14/14 backend tests; logo present in reset, plan-change and newsletter footer; plan/request + forgot-password + admin send-reset all 200.
+
 ## Changelog — 2026-09-23 (Iteration 6b)
 - Merge-tag fallback: tokens now support {{first_name|there}} syntax — when the contact's value is empty the fallback text is used instead (server.py _apply_merge_tags, regex captures optional |fallback; values HTML-escaped).
 - Builder: the "Personalize" panel has a "Fallback when empty" input; chips insert {{key|fallback}} when a fallback is typed, otherwise {{key}}.
