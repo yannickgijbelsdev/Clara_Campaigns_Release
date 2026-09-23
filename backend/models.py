@@ -136,6 +136,16 @@ class AdminCompaniesInput(BaseModel):
     company_ids: List[str] = []
 
 
+class AdminUserUpdateInput(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=120)
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+
+
+class CompanyUpdateInput(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+
+
 class SendInput(BaseModel):
     contact_ids: Optional[List[str]] = None  # None = all contacts
     category_ids: Optional[List[str]] = None

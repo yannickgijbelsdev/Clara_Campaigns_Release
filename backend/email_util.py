@@ -87,6 +87,17 @@ def _assert_safe_email(subject, html):
 
 async def send_email(*, to, subject, html):
     _assert_safe_email(subject, html)
+    # Prefer sending system emails from EMAIL_SENDER (clara@koodh.com) via the
+    # customer's own Microsoft 365 when app-only sending is configured.
+    import ms_graph as MS
+    if MS.system_mail_ready():
+        try:
+            await MS.send_system_mail(to=to, subject=subject, html=html)
+            return "graph"
+        except Exception as e:
+            logger.error(f"System email via Microsoft 365 failed: {e}")
+            raise HTTPException(status_code=502, detail="Failed to send email")
+    # Fallback (before Microsoft 365 is configured): Emergent managed email.
     payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
     try:
         async with httpx.AsyncClient(timeout=30) as client:

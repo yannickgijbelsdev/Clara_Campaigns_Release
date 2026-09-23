@@ -19,6 +19,61 @@ def is_configured() -> bool:
     return bool(os.environ.get("MS_CLIENT_ID") and os.environ.get("MS_CLIENT_SECRET"))
 
 
+def system_mail_ready() -> bool:
+    """App-only (client credentials) sending as EMAIL_SENDER is ready.
+    Requires a concrete tenant GUID/domain — not 'organizations'/'common'."""
+    tenant = (os.environ.get("MS_TENANT") or "").strip().lower()
+    return bool(
+        os.environ.get("MS_CLIENT_ID")
+        and os.environ.get("MS_CLIENT_SECRET")
+        and os.environ.get("EMAIL_SENDER")
+        and tenant
+        and tenant not in ("organizations", "common", "consumers")
+    )
+
+
+_app_cca = None
+
+
+def _app_client():
+    global _app_cca
+    if _app_cca is None:
+        _app_cca = msal.ConfidentialClientApplication(
+            os.environ["MS_CLIENT_ID"],
+            authority=f"{AUTHORITY_BASE}/{os.environ['MS_TENANT']}",
+            client_credential=os.environ["MS_CLIENT_SECRET"],
+        )
+    return _app_cca
+
+
+def get_app_token() -> str:
+    result = _app_client().acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
+    if "access_token" not in result:
+        raise RuntimeError(f"App token failed: {result.get('error')}: {result.get('error_description')}")
+    return result["access_token"]
+
+
+async def send_system_mail(*, to: str, subject: str, html: str):
+    """Send a transactional system email FROM EMAIL_SENDER (e.g. clara@koodh.com)
+    using application permissions (Graph /users/{sender}/sendMail)."""
+    token = get_app_token()
+    sender = os.environ["EMAIL_SENDER"]
+    body = {
+        "message": {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": html},
+            "toRecipients": [{"emailAddress": {"address": to}}],
+        },
+        "saveToSentItems": True,
+    }
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post(f"{GRAPH}/users/{quote(sender)}/sendMail",
+                         headers={"Authorization": f"Bearer {token}"}, json=body)
+    if r.status_code == 202:
+        return True
+    raise RuntimeError(f"Graph system sendMail {r.status_code}: {r.text[:300]}")
+
+
 def _authority() -> str:
     tenant = os.environ.get("MS_TENANT", "organizations")
     return f"{AUTHORITY_BASE}/{tenant}"

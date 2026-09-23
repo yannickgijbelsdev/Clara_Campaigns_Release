@@ -25,7 +25,7 @@ const PLANS = [
 ];
 
 export default function Plans() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const current = user?.license?.plan || "free";
   const [busy, setBusy] = useState(null);
   const [quote, setQuote] = useState(null);
@@ -34,8 +34,14 @@ export default function Plans() {
     setBusy(plan.id);
     try {
       const { data } = await api.post("/plan/request", { plan: plan.id });
-      if (data.paid) setQuote(plan);
-      else toast.success("Your plan change request has been sent.");
+      if (data.instant) {
+        await refreshUser();
+        toast.success("You're now on the Free plan.");
+      } else if (data.paid) {
+        setQuote(plan);
+      } else {
+        toast.success("Your plan change request has been sent.");
+      }
     } catch (e) {
       toast.error(formatApiErrorDetail(e.response?.data?.detail));
     }
@@ -50,9 +56,18 @@ export default function Plans() {
           return (
             <motion.div key={p.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
               data-testid={`plan-card-${p.id}`}
-              className={`relative bg-white rounded-3xl p-6 flex flex-col ${p.popular ? "clara-soft ring-2 ring-rose-500" : "clara-soft"}`}>
-              {p.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-rose-600 text-white text-[11px] font-semibold px-3 py-1 rounded-full">Most popular</span>}
-              <span className={`flex h-11 w-11 items-center justify-center rounded-2xl mb-4 ${p.paid ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"}`}><p.icon className="h-5 w-5" /></span>
+              className={`relative bg-white rounded-3xl p-6 flex flex-col clara-soft clara-trans ${
+                isCurrent ? "ring-2 ring-[#7380b6] shadow-[0_10px_40px_-12px_rgba(115,128,182,0.5)] -translate-y-1"
+                : p.popular ? "ring-2 ring-rose-500" : "ring-1 ring-transparent"}`}>
+              {isCurrent ? (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#7380b6] text-white text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Current plan
+                </span>
+              ) : p.popular ? (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-rose-600 text-white text-[11px] font-semibold px-3 py-1 rounded-full">Most popular</span>
+              ) : null}
+              <span className={`flex h-11 w-11 items-center justify-center rounded-2xl mb-4 ${
+                isCurrent ? "bg-[#7380b6]/10 text-[#7380b6]" : p.paid ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"}`}><p.icon className="h-5 w-5" /></span>
               <h2 className="font-display text-xl font-bold text-slate-900">{p.name}</h2>
               <p className="text-sm text-slate-500 mt-0.5 mb-4">{p.tagline}</p>
               <div className="mb-5">

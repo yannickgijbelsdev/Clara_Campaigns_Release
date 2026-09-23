@@ -25,6 +25,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "", name: "" });
   const [mfa, setMfa] = useState({ token: "", code: "", setup: false, qr: "", secret: "" });
   const [welcome, setWelcome] = useState(false);
+  const [pendingAuth, setPendingAuth] = useState(null);
   const [forgotEmail, setForgotEmail] = useState("");
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function Login() {
     setLoading(true);
     try {
       const { data } = await api.post("/auth/mfa/verify", { mfa_token: mfa.token, code: mfa.code });
-      await login(data.access_token, data.user);
+      setPendingAuth({ token: data.access_token, user: data.user });
       setWelcome(true);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
@@ -99,7 +100,10 @@ export default function Login() {
           "Connecting to the Clara services…",
           "Preparing your workspace to show all the data…",
         ]}
-        onComplete={() => navigate("/dashboard")}
+        onComplete={async () => {
+          if (pendingAuth) await login(pendingAuth.token, pendingAuth.user);
+          navigate("/dashboard");
+        }}
       />
       {/* Left: form */}
       <div className="w-full lg:w-[46%] xl:w-[38%] flex flex-col justify-center px-8 sm:px-16 py-10">

@@ -6,7 +6,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { ShieldCheck, Users, Building2, Trash2, BadgeCheck, Ban, Crown, X, Check } from "lucide-react";
+import { ShieldCheck, Users, Building2, Trash2, BadgeCheck, Ban, Crown, X, Check, Pencil, KeyRound } from "lucide-react";
 
 const PLANS = ["free", "pro", "enterprise"];
 
@@ -16,6 +16,9 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [assign, setAssign] = useState(null); // { user, selected:[] }
+  const [editUser, setEditUser] = useState(null); // { id, name, email, role }
+  const [editCompany, setEditCompany] = useState(null); // { id, name }
+  const [savingEdit, setSavingEdit] = useState(false);
   const confirm = useConfirm();
 
   const load = () => {
@@ -57,6 +60,63 @@ export default function Admin() {
     load();
   };
 
+  const saveUser = async () => {
+    setSavingEdit(true);
+    try {
+      await api.patch(`/admin/users/${editUser.id}`, {
+        name: editUser.name, email: editUser.email, role: editUser.role,
+      });
+      toast.success("User updated");
+      setEditUser(null);
+      load();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+    setSavingEdit(false);
+  };
+
+  const deleteUser = async (u) => {
+    if (!(await confirm({
+      title: "Delete user?",
+      message: `This permanently deletes ${u.name || u.email}, plus any workspaces they own and all that data. This cannot be undone.`,
+      confirmText: "Delete user",
+    }))) return;
+    try {
+      await api.delete(`/admin/users/${u.id}`);
+      toast.success("User deleted");
+      load();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
+  const sendReset = async (u) => {
+    if (!(await confirm({
+      title: "Send password reset?",
+      message: `A password reset link will be emailed to ${u.email}.`,
+      confirmText: "Send link",
+    }))) return;
+    try {
+      await api.post(`/admin/users/${u.id}/send-reset`);
+      toast.success(`Reset link sent to ${u.email}`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
+  const saveCompany = async () => {
+    setSavingEdit(true);
+    try {
+      await api.patch(`/admin/companies/${editCompany.id}`, { name: editCompany.name });
+      toast.success("Company renamed");
+      setEditCompany(null);
+      load();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+    setSavingEdit(false);
+  };
+
   return (
     <AppLayout title="Administration" subtitle="Manage users, licenses and companies">
       <div className="flex items-center gap-1 bg-slate-100 rounded-full p-1 w-fit mb-6">
@@ -78,6 +138,7 @@ export default function Admin() {
                 <th className="text-left px-6 py-3 font-medium">License</th>
                 <th className="text-left px-6 py-3 font-medium">Workspaces</th>
                 <th className="text-right px-6 py-3 font-medium">Assign license</th>
+                <th className="text-right px-6 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -134,6 +195,19 @@ export default function Admin() {
                       )}
                     </div>
                   </td>
+                  <td className="px-6 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button data-testid={`edit-user-${u.id}`} title="Edit user"
+                        onClick={() => setEditUser({ id: u.id, name: u.name || "", email: u.email, role: u.role || "user" })}
+                        className="p-2 text-slate-400 hover:text-[#7380b6] hover:bg-[#7380b6]/10 rounded-lg clara-trans"><Pencil className="h-4 w-4" /></button>
+                      <button data-testid={`reset-user-${u.id}`} title="Send password reset"
+                        onClick={() => sendReset(u)}
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg clara-trans"><KeyRound className="h-4 w-4" /></button>
+                      <button data-testid={`delete-user-${u.id}`} title="Delete user"
+                        onClick={() => deleteUser(u)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg clara-trans"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </td>
                 </motion.tr>
               ))}
             </tbody>
@@ -149,8 +223,12 @@ export default function Admin() {
                 <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center font-bold text-lg">
                   {c.name.slice(0, 1).toUpperCase()}
                 </div>
-                <button data-testid={`delete-company-${c.id}`} onClick={() => removeCompany(c.id)}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                <div className="flex items-center gap-1">
+                  <button data-testid={`edit-company-${c.id}`} title="Rename company" onClick={() => setEditCompany({ id: c.id, name: c.name })}
+                    className="p-1.5 text-slate-400 hover:text-[#7380b6] hover:bg-[#7380b6]/10 rounded-lg"><Pencil className="h-4 w-4" /></button>
+                  <button data-testid={`delete-company-${c.id}`} onClick={() => removeCompany(c.id)}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                </div>
               </div>
               <div className="font-display font-semibold text-slate-900 mt-3">{c.name}</div>
               <div className="text-xs text-slate-500 mt-1">{c.campaigns} campaigns · {c.contacts} contacts</div>
@@ -191,6 +269,68 @@ export default function Admin() {
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setAssign(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
               <button data-testid="save-assign-companies-btn" onClick={saveAssign} className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-full">Save</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {editUser && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditUser(null)}>
+          <motion.div initial={{ opacity: 0, y: -10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            onClick={(e) => e.stopPropagation()} data-testid="edit-user-modal"
+            className="bg-white rounded-3xl clara-soft w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-display font-semibold text-lg text-slate-900">Edit user</h3>
+              <button onClick={() => setEditUser(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="h-5 w-5 text-slate-400" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Name</label>
+                <input data-testid="edit-user-name" value={editUser.name}
+                  onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Email</label>
+                <input data-testid="edit-user-email" type="email" value={editUser.email}
+                  onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Role</label>
+                <select data-testid="edit-user-role" value={editUser.role}
+                  onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6] capitalize">
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setEditUser(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
+              <button data-testid="save-user-btn" onClick={saveUser} disabled={savingEdit}
+                className="px-4 py-2 text-sm bg-[#7380b6] hover:opacity-90 text-white rounded-full disabled:opacity-60">Save changes</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {editCompany && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditCompany(null)}>
+          <motion.div initial={{ opacity: 0, y: -10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            onClick={(e) => e.stopPropagation()} data-testid="edit-company-modal"
+            className="bg-white rounded-3xl clara-soft w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-display font-semibold text-lg text-slate-900">Rename company</h3>
+              <button onClick={() => setEditCompany(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="h-5 w-5 text-slate-400" /></button>
+            </div>
+            <label className="block text-[11px] font-medium text-slate-600 mb-1">Company name</label>
+            <input data-testid="edit-company-name" value={editCompany.name}
+              onChange={(e) => setEditCompany({ ...editCompany, name: e.target.value })}
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setEditCompany(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
+              <button data-testid="save-company-btn" onClick={saveCompany} disabled={savingEdit || !editCompany.name.trim()}
+                className="px-4 py-2 text-sm bg-[#7380b6] hover:opacity-90 text-white rounded-full disabled:opacity-60">Save</button>
             </div>
           </motion.div>
         </div>

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { motion } from "framer-motion";
+import { BearLoader } from "@/components/BearLoader";
+import { useLoadingGate } from "@/lib/useLoadingGate";
 import { Loader2, CheckCircle2, Mail } from "lucide-react";
 
 export default function SubscribePage() {
@@ -15,6 +17,7 @@ export default function SubscribePage() {
   useEffect(() => {
     api.get(`/public/form/${apiKey}`).then((r) => setCfg(r.data)).catch(() => setErr(true));
   }, [apiKey]);
+  const showLoader = useLoadingGate(!!cfg);
 
   const toggleCat = (id) => setForm((f) => ({
     ...f, category_ids: f.category_ids.includes(id) ? f.category_ids.filter((x) => x !== id) : [...f.category_ids, id],
@@ -41,7 +44,7 @@ export default function SubscribePage() {
     </div>
   );
 
-  if (!cfg) return <div className="min-h-screen bg-[#F5F6F8] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-rose-500" /></div>;
+  if (showLoader) return <div className="min-h-screen bg-[#F5F6F8]"><BearLoader label="Loading form…" /></div>;
 
   const primary = cfg.brand_primary || "#7380b6";
 

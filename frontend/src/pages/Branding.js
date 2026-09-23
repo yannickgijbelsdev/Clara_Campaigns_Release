@@ -4,6 +4,8 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { BearLoader } from "@/components/BearLoader";
+import { useLoadingGate } from "@/lib/useLoadingGate";
 import { Palette, Camera, Loader2, Globe, Check, Building2 } from "lucide-react";
 
 const inp = "w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none";
@@ -20,6 +22,7 @@ export function BrandingForm({ onSaved, compact = false }) {
 
   const load = () => api.get("/company/branding").then((r) => setB(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
+  const showLoader = useLoadingGate(!!b, compact ? 0 : 4000);
 
   const save = async () => {
     setBusy(true);
@@ -54,7 +57,7 @@ export function BrandingForm({ onSaved, compact = false }) {
     e.target.value = "";
   };
 
-  if (!b) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-rose-500" /></div>;
+  if (showLoader) return <BearLoader label="Loading your branding…" />;
   const logo = companyLogoUrl(b);
 
   return (

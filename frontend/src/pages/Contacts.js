@@ -5,6 +5,8 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History } from "lucide-react";
+import { BearLoader } from "@/components/BearLoader";
+import { withMinDelay } from "@/lib/useLoadingGate";
 
 export default function Contacts() {
   const [searchParams] = useSearchParams();
@@ -17,6 +19,7 @@ export default function Contacts() {
   const [historyView, setHistoryView] = useState(null); // { contact, items }
   const [group, setGroup] = useState("all"); // all | subscribed | unsubscribed
   const [catMap, setCatMap] = useState({});
+  const [importing, setImporting] = useState(false);
   const confirm = useConfirm();
 
   const load = () => api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
@@ -64,13 +67,19 @@ export default function Contacts() {
     if (!file) return;
     const fd = new FormData();
     fd.append("file", file);
+    const start = Date.now();
+    setImporting(true);
     try {
-      const { data } = await api.post("/contacts/import", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const { data } = await withMinDelay(
+        api.post("/contacts/import", fd, { headers: { "Content-Type": "multipart/form-data" } }),
+        start, 4000);
       toast.success(`${data.imported} imported, ${data.skipped} skipped`);
       setShowImport(false);
       load();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    } finally {
+      setImporting(false);
     }
     e.target.value = "";
   };
@@ -142,6 +151,7 @@ export default function Contacts() {
 
   return (
     <AppLayout title="Contacts" subtitle={`${contacts.length} recipient(s)`} actions={actions}>
+      <BearLoader open={importing} label="Importing your contacts…" />
       <div className="mb-5 flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1 bg-slate-100 rounded-full p-1">
           {[["all", "All", contacts.length], ["subscribed", "Subscribed", subCount], ["unsubscribed", "Unsubscribed", unsubCount]].map(([id, label, n]) => (

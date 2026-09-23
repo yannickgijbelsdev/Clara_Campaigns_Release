@@ -28,6 +28,7 @@ from models import (
     ForgotInput, ResetInput, MfaCodeInput, PasswordChangeInput,
     BrandingInput, AdminCompaniesInput, CategoryInput,
     SubscribeSettingsInput, PublicSubscribeInput, PlanRequestInput, now_iso,
+    AdminUserUpdateInput, CompanyUpdateInput,
 )
 import email_util
 import storage
@@ -285,20 +286,24 @@ async def logout(response: Response, user=Depends(A.get_current_user)):
     return {"ok": True}
 
 
+async def _create_and_send_reset(user: dict):
+    token = secrets.token_urlsafe(32)
+    expires = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    await db.password_reset_tokens.insert_one({
+        "token": token, "user_id": str(user["_id"]), "expires_at": expires, "used": False})
+    reset_url = f"{os.environ['FRONTEND_URL']}/reset-password?token={token}"
+    await email_util.send_email(
+        to=user["email"], subject="Reset your Clara Campaigns password",
+        html=email_util.reset_email_html(user.get("name", "there"), reset_url))
+
+
 @api.post("/auth/forgot-password")
 async def forgot_password(data: ForgotInput):
     email = data.email.lower()
     user = await db.users.find_one({"email": email})
     if user:
-        token = secrets.token_urlsafe(32)
-        expires = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
-        await db.password_reset_tokens.insert_one({
-            "token": token, "user_id": str(user["_id"]), "expires_at": expires, "used": False})
-        reset_url = f"{os.environ['FRONTEND_URL']}/reset-password?token={token}"
         try:
-            await email_util.send_email(
-                to=email, subject="Reset your Clara Campaigns password",
-                html=email_util.reset_email_html(user.get("name", "there"), reset_url))
+            await _create_and_send_reset(user)
         except Exception as exc:
             logger.error(f"reset email failed: {exc}")
     return {"ok": True}
@@ -641,6 +646,17 @@ async def request_plan_change(data: PlanRequestInput, s=Depends(scope)):
     requested = data.plan.lower().strip()
     paid = requested in ("pro", "enterprise")
     company_name = s["company"].get("name")
+
+    # Downgrading to Free is instant — no approval needed.
+    if requested == "free":
+        lic = {"plan": "free", "active": True, "assigned_by": "self", "assigned_at": now_iso()}
+        await db.users.update_one({"_id": oid(user["id"])}, {"$set": {"license": lic}})
+        await db.plan_requests.insert_one({
+            "user_id": user["id"], "email": full["email"], "company_id": s["company_id"],
+            "current_plan": current, "requested_plan": "free", "message": data.message,
+            "status": "applied", "created_at": now_iso()})
+        return {"ok": True, "paid": False, "plan": "free", "instant": True}
+
     await db.plan_requests.insert_one({
         "user_id": user["id"], "email": full["email"], "company_id": s["company_id"],
         "current_plan": current, "requested_plan": requested, "message": data.message,
@@ -652,10 +668,11 @@ async def request_plan_change(data: PlanRequestInput, s=Depends(scope)):
             html=_plan_request_html(full["email"], full.get("name"), company_name, current, requested, data.message))
     except Exception as exc:
         logger.error(f"plan request email failed: {exc}")
-    return {"ok": True, "paid": paid, "plan": requested}
+    return {"ok": True, "paid": paid, "plan": requested, "instant": False}
 
 
-# ============ ADMIN: users & licenses ============@api.get("/admin/users")
+# ============ ADMIN: users & licenses ============
+@api.get("/admin/users")
 async def admin_users(user=Depends(A.get_current_user)):
     require_admin(user)
     rows = await db.users.find({}).sort("created_at", -1).to_list(2000)
@@ -715,6 +732,81 @@ async def admin_set_license(user_id: str, body: dict, user=Depends(A.get_current
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     return {"ok": True, "license": lic}
+
+
+@api.patch("/admin/users/{user_id}")
+async def admin_update_user(user_id: str, data: AdminUserUpdateInput, user=Depends(A.get_current_user)):
+    require_admin(user)
+    target = await db.users.find_one({"_id": oid(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    upd = {}
+    if data.name is not None:
+        upd["name"] = data.name.strip()
+    if data.email is not None:
+        new_email = data.email.lower().strip()
+        if new_email != target["email"]:
+            clash = await db.users.find_one({"email": new_email, "_id": {"$ne": target["_id"]}})
+            if clash:
+                raise HTTPException(status_code=400, detail="Another account already uses that email.")
+            upd["email"] = new_email
+    if data.role is not None:
+        role = data.role.strip().lower()
+        if role not in ("user", "admin"):
+            raise HTTPException(status_code=400, detail="Role must be 'user' or 'admin'.")
+        if user_id == user["id"] and role != "admin":
+            raise HTTPException(status_code=400, detail="You cannot remove your own admin role.")
+        upd["role"] = role
+    if upd:
+        await db.users.update_one({"_id": target["_id"]}, {"$set": upd})
+    return {"ok": True}
+
+
+@api.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, user=Depends(A.get_current_user)):
+    require_admin(user)
+    if user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account.")
+    target = await db.users.find_one({"_id": oid(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Delete companies this user owns, along with their data.
+    owned = await db.companies.find({"owner_id": user_id}).to_list(2000)
+    for c in owned:
+        cid = str(c["_id"])
+        await db.campaigns.delete_many({"company_id": cid})
+        await db.contacts.delete_many({"company_id": cid})
+        await db.deliveries.delete_many({"company_id": cid})
+        await db.companies.delete_one({"_id": c["_id"]})
+    # Remove them from any workspaces they were a member of.
+    await db.companies.update_many({"member_ids": user_id}, {"$pull": {"member_ids": user_id}})
+    await db.mailboxes.delete_many({"user_id": user_id})
+    await db.password_reset_tokens.delete_many({"user_id": user_id})
+    await db.users.delete_one({"_id": target["_id"]})
+    return {"ok": True}
+
+
+@api.post("/admin/users/{user_id}/send-reset")
+async def admin_send_reset(user_id: str, user=Depends(A.get_current_user)):
+    require_admin(user)
+    target = await db.users.find_one({"_id": oid(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        await _create_and_send_reset(target)
+    except Exception as exc:
+        logger.error(f"admin reset email failed: {exc}")
+        raise HTTPException(status_code=502, detail="Could not send the reset email. Please try again.")
+    return {"ok": True, "email": target["email"]}
+
+
+@api.patch("/admin/companies/{company_id}")
+async def admin_update_company(company_id: str, data: CompanyUpdateInput, user=Depends(A.get_current_user)):
+    require_admin(user)
+    r = await db.companies.update_one({"_id": oid(company_id)}, {"$set": {"name": data.name.strip()}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {"ok": True, "name": data.name.strip()}
 
 
 # ============ OFFICE 365 MAILBOX ============

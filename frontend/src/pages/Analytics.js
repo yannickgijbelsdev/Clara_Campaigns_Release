@@ -4,6 +4,8 @@ import AppLayout from "@/components/AppLayout";
 import api from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ArrowLeft, Send, MailOpen, MousePointerClick, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { BearLoader } from "@/components/BearLoader";
+import { useLoadingGate } from "@/lib/useLoadingGate";
 
 const STATUS = {
   sent: "bg-emerald-50 text-emerald-700",
@@ -22,8 +24,9 @@ export default function Analytics() {
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [id]);
+  const showLoader = useLoadingGate(!!data);
 
-  if (!data) return <AppLayout title="Analytics"><div className="text-slate-400">Loading…</div></AppLayout>;
+  if (showLoader) return <AppLayout title="Analytics"><BearLoader label="Loading analytics…" /></AppLayout>;
 
   const t = data.totals;
   const chart = [

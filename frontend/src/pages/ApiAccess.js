@@ -5,6 +5,8 @@ import { companyLogoUrl } from "@/pages/Branding";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { BearLoader } from "@/components/BearLoader";
+import { useLoadingGate } from "@/lib/useLoadingGate";
 import {
   Code2, Copy, RefreshCw, ExternalLink, CheckCircle2, AlertTriangle, Loader2, Check,
   Tag, Plus, Trash2, Globe, BookOpen, Link2,
@@ -84,6 +86,7 @@ export default function ApiAccess() {
     load();
     api.get("/company/branding").then((r) => setBranding(r.data)).catch(() => {});
   }, []);
+  const showLoader = useLoadingGate(!!s);
 
   const save = async () => {
     setBusy(true);
@@ -106,7 +109,7 @@ export default function ApiAccess() {
     setS(data); toast.success("New API key generated");
   };
 
-  if (!s) return <AppLayout title="API & Subscribe form"><div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-rose-500" /></div></AppLayout>;
+  if (showLoader) return <AppLayout title="API & Subscribe form"><BearLoader label="Loading API access…" /></AppLayout>;
 
   const notConfigured = !s.website;
   const logo = companyLogoUrl(branding);
