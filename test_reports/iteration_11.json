@@ -1,0 +1,16 @@
+{
+  "summary": "Backend-only testing (iteration 11): verified yannick admin seed. All 4 tests passed. Login with new password returns mfa_required + valid mfa_token; MFA verify with TOTP returns access_token + user.role='admin'; /api/admin/users accessible. Old password Koodh2026! rejected with 401. Code check: startup() has exactly one _seed_admin call (yannick) with no admin@claracampaigns.com reference. Seed resilience: subprocess with ADMIN2_EMAIL/ADMIN2_PASSWORD env vars popped still creates/updates yannick via hardcoded defaults.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_iter11_yannick_seed.py", "/app/test_reports/pytest/iter11_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/backend/tests/test_iter11_yannick_seed.py"],
+  "success_rate": {"backend": "100%", "frontend": "not tested"},
+  "test_credentials": "yannick.gijbels@koodh.com / KYLovie13monx (TOTP secret read from mongo db.users.totp_secret)",
+  "seed_data_creation": "None; used existing yannick user (re-seeded by startup).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter11 test file covers admin seed regression: login+MFA, old-pw rejection, startup source check, and no-env-vars subprocess seeding. Reusable for future regressions on _seed_admin.",
+  "rca of the issue": "Prod had no admin because startup _seed_admin returned early when ADMIN2_EMAIL/ADMIN2_PASSWORD env vars were missing. Fix: _seed_admin now falls back to hardcoded defaults ('yannick.gijbels@koodh.com','KYLovie13monx') passed by startup(), so admin is always seeded/updated regardless of env. Verified via subprocess resilience test."
+}

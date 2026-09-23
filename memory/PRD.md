@@ -91,6 +91,12 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Requires a production REDEPLOY. If it still 502s afterwards, read the deployed backend logs for the specific startup exception (now logged, not fatal).
 - Verified: iteration_10.json — 8/8 backend (boots without TOKEN_ENCRYPTION_KEY; register + MFA + admin login + /me + CORS all pass).
 
+## Changelog — 2026-09-23 (Iteration 11) — Guaranteed admin seed
+- Production had NO admin (both logins 401) because the startup seed returned early when ADMIN_* env vars weren't present in the production environment.
+- Fix: _seed_admin now falls back to hardcoded defaults; startup seeds ONLY yannick.gijbels@koodh.com / KYLovie13monx (admin@claracampaigns.com seed removed per user request). Admin is now always created/updated on startup regardless of env.
+- Requires a production REDEPLOY. On the fresh prod DB, yannick is created with mfa_enabled=false → first login shows the MFA setup QR.
+- Verified: iteration_11.json — 4/4 backend (login+MFA as admin, old password rejected, only-yannick seed, seed works without env vars).
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.
