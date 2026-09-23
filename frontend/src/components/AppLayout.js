@@ -21,6 +21,7 @@ const BASE_NAV = [
   { to: "/campaigns", label: "Campaigns" },
   { to: "/contacts", label: "Contacts" },
   { to: "/branding", label: "Branding" },
+  { to: "/developers", label: "API" },
   { to: "/integrations", label: "Microsoft 365" },
 ];
 
@@ -161,6 +162,10 @@ function UserMenu() {
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-slate-50 text-left text-sm text-slate-700 clara-trans">
               <ShieldCheck className="h-4 w-4 text-slate-400" /> Account &amp; Security
             </button>
+            <button data-testid="menu-plans" onClick={() => { setOpen(false); navigate("/plans"); }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-slate-50 text-left text-sm text-slate-700 clara-trans">
+              <Gem className="h-4 w-4 text-slate-400" /> Plans &amp; billing
+            </button>
             <button data-testid="logout-btn" onClick={logout}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-rose-50 text-left text-sm text-rose-600 clara-trans">
               <LogOut className="h-4 w-4" /> Sign out
@@ -177,6 +182,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mailbox, setMailbox] = useState(null);
+  const [apiCfg, setApiCfg] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
@@ -208,6 +214,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
 
   useEffect(() => {
     api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
+    api.get("/subscribe/settings").then((r) => setApiCfg(r.data)).catch(() => {});
   }, []);
 
   const NAV = user?.role === "admin"
@@ -223,14 +230,14 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
           <div className="hidden sm:block h-5 w-px bg-slate-200/60" />
           <div className="hidden xl:flex items-center gap-1.5 mr-1">
-            <div className="relative group" data-testid="plan-chip">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 clara-trans hover:bg-amber-100 cursor-default">
+            <button onClick={() => navigate("/plans")} className="relative group" data-testid="plan-chip">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 clara-trans hover:bg-amber-100">
                 <Gem className="h-[17px] w-[17px]" />
               </span>
               <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 whitespace-nowrap rounded-lg bg-slate-900 text-white text-xs px-2.5 py-1 opacity-0 group-hover:opacity-100 clara-trans capitalize z-50">
-                {(user?.license?.plan || "free")} plan
+                {(user?.license?.plan || "free")} plan · manage
               </span>
-            </div>
+            </button>
             <div className="relative group">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white clara-trans hover:bg-slate-800 cursor-default">
                 <Lock className="h-4 w-4" />
@@ -299,6 +306,21 @@ export default function AppLayout({ children, title, subtitle, actions }) {
             <button onClick={() => navigate("/integrations")}
               className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-full px-4 py-2 clara-trans">
               Connect
+            </button>
+          </motion.div>
+        )}
+        {apiCfg && !apiCfg.website && !["/developers", "/plans"].includes(location.pathname) && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+            data-testid="api-warning-banner" className="mb-6 flex items-center gap-4 bg-white/70 backdrop-blur-md rounded-2xl clara-soft px-4 py-3.5 ring-1 ring-amber-100/70">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shrink-0">
+              <AlertCircle className="h-[18px] w-[18px]" />
+            </span>
+            <div className="text-sm text-slate-600 flex-1 leading-snug">
+              <b className="text-slate-900">Subscribe API not set up.</b> No website is linked, so people can't subscribe from your site yet. Add your website and grab the embed code.
+            </div>
+            <button onClick={() => navigate("/developers")}
+              className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-full px-4 py-2 clara-trans">
+              Set up
             </button>
           </motion.div>
         )}

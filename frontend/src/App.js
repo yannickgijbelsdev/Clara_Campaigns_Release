@@ -11,6 +11,9 @@ import Campaigns from "@/pages/Campaigns";
 import Builder from "@/pages/Builder";
 import Contacts from "@/pages/Contacts";
 import Branding from "@/pages/Branding";
+import ApiAccess from "@/pages/ApiAccess";
+import Plans from "@/pages/Plans";
+import SubscribePage from "@/pages/SubscribePage";
 import Integrations from "@/pages/Integrations";
 import Settings from "@/pages/Settings";
 import Analytics from "@/pages/Analytics";
@@ -61,6 +64,9 @@ function App() {
             <Route path="/campaigns/:id/analytics" element={<Protected><Analytics /></Protected>} />
             <Route path="/contacts" element={<Protected><Contacts /></Protected>} />
             <Route path="/branding" element={<Protected><Branding /></Protected>} />
+            <Route path="/developers" element={<Protected><ApiAccess /></Protected>} />
+            <Route path="/plans" element={<Protected><Plans /></Protected>} />
+            <Route path="/subscribe/:apiKey" element={<SubscribePage />} />
             <Route path="/integrations" element={<Protected><Integrations /></Protected>} />
             <Route path="/settings" element={<Protected><Settings /></Protected>} />
             <Route path="/admin" element={<Protected><Admin /></Protected>} />

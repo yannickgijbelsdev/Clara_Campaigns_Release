@@ -67,7 +67,37 @@ class ContactInput(BaseModel):
     first_name: Optional[str] = ""
     last_name: Optional[str] = ""
     company: Optional[str] = ""
+    city: Optional[str] = ""
     tags: List[str] = []
+    category_ids: List[str] = []
+
+
+class CategoryInput(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: Optional[str] = ""
+    color: Optional[str] = "#E11D48"
+
+
+class SubscribeSettingsInput(BaseModel):
+    website: Optional[str] = None
+    form_title: Optional[str] = None
+    form_intro: Optional[str] = None
+    form_thankyou: Optional[str] = None
+    collect_city: Optional[bool] = None
+    active: Optional[bool] = None
+
+
+class PublicSubscribeInput(BaseModel):
+    first_name: str = Field(default="", max_length=120)
+    last_name: str = Field(default="", max_length=120)
+    email: EmailStr
+    city: Optional[str] = ""
+    category_ids: List[str] = []
+
+
+class PlanRequestInput(BaseModel):
+    plan: str = Field(max_length=40)
+    message: Optional[str] = Field(default="", max_length=2000)
 
 
 # ---------- Campaigns ----------
@@ -102,8 +132,10 @@ class AdminCompaniesInput(BaseModel):
 
 class SendInput(BaseModel):
     contact_ids: Optional[List[str]] = None  # None = all contacts
+    category_ids: Optional[List[str]] = None
 
 
 class ScheduleInput(BaseModel):
     scheduled_at: str
     contact_ids: Optional[List[str]] = None
+    category_ids: Optional[List[str]] = None

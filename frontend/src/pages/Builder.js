@@ -8,7 +8,7 @@ import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { toast } from "sonner";
 import {
   Type, AlignLeft, Image as ImageIcon, MousePointer, Minus, Space, Images,
-  Save, Send, Code2, Eye, Trash2, ArrowUp, ArrowDown, Loader2, X,
+  Save, Send, Code2, Eye, Trash2, ArrowUp, ArrowDown, Loader2, X, Link2, Check,
 } from "lucide-react";
 
 const PALETTE = [
@@ -39,6 +39,8 @@ export default function Builder() {
   const [campaignId, setCampaignId] = useState(isNew ? null : id);
   const [createProgress, setCreateProgress] = useState(false);
   const [branding, setBranding] = useState(null);
+  const [autoStatus, setAutoStatus] = useState(""); // "" | "saving" | "saved"
+  const hydrated = useRef(false);
 
   useEffect(() => {
     api.get("/company/branding").then((r) => setBranding(r.data)).catch(() => {});
@@ -72,9 +74,40 @@ export default function Builder() {
         setMeta({ name: r.data.name, subject: r.data.subject || "", preheader: r.data.preheader || "" });
         setBlocks(r.data.blocks || []);
         setRawHtml(r.data.html || "");
+        setTimeout(() => { hydrated.current = true; }, 200);
       }).catch(() => toast.error("Campaign not found"));
+    } else {
+      const t = setTimeout(() => { hydrated.current = true; }, 900);
+      return () => clearTimeout(t);
     }
   }, [id]);
+
+  const buildHtml = () => (mode === "html" ? rawHtml : generateHtml(blocks));
+
+  const autosave = async () => {
+    const payload = { ...meta, blocks, html: buildHtml() };
+    try {
+      if (campaignId) {
+        await api.put(`/campaigns/${campaignId}`, payload);
+      } else {
+        const { data } = await api.post("/campaigns", payload);
+        setCampaignId(data.id);
+        window.history.replaceState(null, "", `/campaigns/${data.id}`);
+      }
+      setAutoStatus("saved");
+    } catch {
+      setAutoStatus("");
+    }
+  };
+
+  // Debounced autosave on any change.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    setAutoStatus("saving");
+    const t = setTimeout(() => { autosave(); }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta, blocks, rawHtml, mode]);
 
   const html = useMemo(() => (mode === "html" ? rawHtml : generateHtml(blocks)), [blocks, mode, rawHtml]);
 
@@ -100,7 +133,7 @@ export default function Builder() {
 
   const save = async () => {
     setSaving(true);
-    const payload = { ...meta, blocks, html: generateHtml(blocks) };
+    const payload = { ...meta, blocks, html: buildHtml() };
     try {
       if (campaignId) {
         await api.put(`/campaigns/${campaignId}`, payload);
@@ -153,6 +186,13 @@ export default function Builder() {
         <button data-testid="send-btn" onClick={async () => { if (await save()) setShowSend(true); }}
           className="inline-flex items-center gap-1.5 text-sm px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full transition-colors">
           <Send className="h-4 w-4" /> Send</button>
+        {autoStatus && (
+          <span data-testid="autosave-status" className="flex items-center gap-1.5 text-xs text-slate-400 ml-1">
+            {autoStatus === "saving"
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</>
+              : <><Check className="h-3.5 w-3.5 text-emerald-500" /> Auto-saved</>}
+          </span>
+        )}
       </div>
 
       {mode === "html" ? (
@@ -193,8 +233,16 @@ export default function Builder() {
                 <div className="bg-white rounded-lg overflow-hidden max-w-[600px] mx-auto shadow-sm">
                   {blocks.map((b, idx) => (
                     <div key={b.id} data-testid={`canvas-block-${b.type}`} onClick={() => setSelected(b.id)}
+                      onClickCapture={(e) => { const a = e.target.closest && e.target.closest("a"); if (a) e.preventDefault(); }}
                       className={`relative group cursor-pointer transition-all ${selected === b.id ? "ring-2 ring-rose-500 ring-inset" : "hover:ring-1 hover:ring-slate-300 ring-inset"}`}>
                       <div dangerouslySetInnerHTML={{ __html: `<table style="width:100%;border-collapse:collapse">${renderBlock(b)}</table>` }} />
+                      {b.type === "logo" && b.props.link && (
+                        <div data-testid="logo-redirect-note"
+                          className="absolute bottom-1 left-1 flex items-center gap-1 max-w-[90%] bg-slate-900/85 text-white text-[10px] font-medium px-2 py-1 rounded-full backdrop-blur">
+                          <Link2 className="h-3 w-3 shrink-0" />
+                          <span className="truncate">Redirects to {b.props.link}</span>
+                        </div>
+                      )}
                       {selected === b.id && (
                         <div className="absolute top-1 right-1 flex gap-1 bg-white rounded-md shadow border border-slate-200 p-0.5">
                           <button onClick={(e) => { e.stopPropagation(); move(idx, -1); }} className="p-1 hover:bg-slate-100 rounded"><ArrowUp className="h-3.5 w-3.5" /></button>

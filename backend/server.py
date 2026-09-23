@@ -26,7 +26,8 @@ from models import (
     RegisterInput, LoginInput, MfaVerifyInput, ContactInput,
     CampaignInput, SendInput, ScheduleInput, CompanyInput,
     ForgotInput, ResetInput, MfaCodeInput, PasswordChangeInput,
-    BrandingInput, AdminCompaniesInput, now_iso,
+    BrandingInput, AdminCompaniesInput, CategoryInput,
+    SubscribeSettingsInput, PublicSubscribeInput, PlanRequestInput, now_iso,
 )
 import email_util
 import storage
@@ -432,8 +433,212 @@ async def get_company_logo(company_id: str):
                         headers={"Cache-Control": "public, max-age=60"})
 
 
-# ============ ADMIN: users & licenses ============
-@api.get("/admin/users")
+# ============ CATEGORIES ============
+def _category_out(c):
+    return {"id": str(c["_id"]), "name": c.get("name"), "description": c.get("description", ""),
+            "color": c.get("color", "#E11D48"),
+            "contacts": c.get("contacts", 0)}
+
+
+@api.get("/categories")
+async def list_categories(s=Depends(scope)):
+    rows = await db.categories.find({"company_id": s["company_id"]}).sort("created_at", 1).to_list(500)
+    out = []
+    for r in rows:
+        c = _category_out(r)
+        c["contacts"] = await db.contacts.count_documents({"company_id": s["company_id"], "categories": str(r["_id"])})
+        out.append(c)
+    return out
+
+
+@api.post("/categories")
+async def create_category(data: CategoryInput, s=Depends(scope)):
+    doc = {**data.model_dump(), "company_id": s["company_id"], "created_at": now_iso()}
+    res = await db.categories.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    return _category_out(doc)
+
+
+@api.put("/categories/{category_id}")
+async def update_category(category_id: str, data: CategoryInput, s=Depends(scope)):
+    await db.categories.update_one({"_id": oid(category_id), "company_id": s["company_id"]},
+                                   {"$set": data.model_dump()})
+    c = await db.categories.find_one({"_id": oid(category_id)})
+    return _category_out(c)
+
+
+@api.delete("/categories/{category_id}")
+async def delete_category(category_id: str, s=Depends(scope)):
+    await db.categories.delete_one({"_id": oid(category_id), "company_id": s["company_id"]})
+    await db.contacts.update_many({"company_id": s["company_id"]}, {"$pull": {"categories": category_id}})
+    return {"ok": True}
+
+
+# ============ SUBSCRIBE / PUBLIC API ============
+def _subscribe_out(company):
+    api_key = company.get("api_key")
+    public_base = os.environ.get("PUBLIC_BASE_URL") or os.environ["BACKEND_URL"]
+    public_url = f"{public_base}/subscribe/{api_key}" if api_key else None
+    embed = (f'<a href="{public_url}" target="_blank" rel="noopener" '
+             f'style="display:inline-block;padding:12px 22px;background:{company.get("brand_primary") or "#E11D48"};'
+             f'color:#fff;border-radius:9999px;font-family:sans-serif;text-decoration:none;font-weight:600;">'
+             f'Subscribe to our newsletter</a>') if public_url else None
+    iframe = f'<iframe src="{public_url}" width="100%" height="640" style="border:0;" title="Subscribe"></iframe>' if public_url else None
+    return {
+        "api_key": api_key,
+        "website": company.get("website") or "",
+        "form_title": company.get("form_title") or f"Subscribe to {company.get('name', 'our newsletter')}",
+        "form_intro": company.get("form_intro") or "Stay in the loop — sign up to receive our latest news and updates.",
+        "form_thankyou": company.get("form_thankyou") or "Thanks for subscribing! Please check your inbox.",
+        "collect_city": company.get("collect_city", True),
+        "active": company.get("subscribe_active", True),
+        "connected": bool(company.get("api_connected")),
+        "last_used_at": company.get("api_last_used"),
+        "public_url": public_url,
+        "embed_snippet": embed,
+        "iframe_snippet": iframe,
+    }
+
+
+@api.get("/subscribe/settings")
+async def get_subscribe_settings(s=Depends(scope)):
+    company = s["company"]
+    if not company.get("api_key"):
+        key = "clr_" + secrets.token_urlsafe(24)
+        await db.companies.update_one({"_id": company["_id"]}, {"$set": {"api_key": key}})
+        company = await db.companies.find_one({"_id": company["_id"]})
+    return _subscribe_out(company)
+
+
+@api.put("/subscribe/settings")
+async def update_subscribe_settings(data: SubscribeSettingsInput, s=Depends(scope)):
+    upd = {}
+    if data.website is not None:
+        upd["website"] = data.website.strip()
+    if data.form_title is not None:
+        upd["form_title"] = data.form_title
+    if data.form_intro is not None:
+        upd["form_intro"] = data.form_intro
+    if data.form_thankyou is not None:
+        upd["form_thankyou"] = data.form_thankyou
+    if data.collect_city is not None:
+        upd["collect_city"] = data.collect_city
+    if data.active is not None:
+        upd["subscribe_active"] = data.active
+    if upd:
+        await db.companies.update_one({"_id": s["company"]["_id"]}, {"$set": upd})
+    company = await db.companies.find_one({"_id": s["company"]["_id"]})
+    return _subscribe_out(company)
+
+
+@api.post("/subscribe/regenerate-key")
+async def regenerate_api_key(s=Depends(scope)):
+    key = "clr_" + secrets.token_urlsafe(24)
+    await db.companies.update_one({"_id": s["company"]["_id"]},
+                                  {"$set": {"api_key": key}, "$unset": {"api_connected": "", "api_last_used": ""}})
+    company = await db.companies.find_one({"_id": s["company"]["_id"]})
+    return _subscribe_out(company)
+
+
+@api.get("/public/form/{api_key}")
+async def public_form(api_key: str):
+    company = await db.companies.find_one({"api_key": api_key})
+    if not company or company.get("subscribe_active") is False:
+        raise HTTPException(status_code=404, detail="Form not found")
+    # Mark the form as connected the first time a site loads it.
+    if not company.get("api_connected"):
+        await db.companies.update_one({"_id": company["_id"]},
+                                      {"$set": {"api_connected": True, "api_last_used": now_iso()}})
+    cats = await db.categories.find({"company_id": str(company["_id"])}).sort("created_at", 1).to_list(500)
+    return {
+        "company_name": company.get("name"),
+        "logo_url": company.get("logo_url"),
+        "brand_primary": company.get("brand_primary") or "#E11D48",
+        "brand_accent": company.get("brand_accent") or "#0F172A",
+        "website": company.get("website") or "",
+        "form_title": company.get("form_title") or f"Subscribe to {company.get('name', 'our newsletter')}",
+        "form_intro": company.get("form_intro") or "Stay in the loop — sign up to receive our latest news and updates.",
+        "form_thankyou": company.get("form_thankyou") or "Thanks for subscribing! Please check your inbox.",
+        "collect_city": company.get("collect_city", True),
+        "categories": [{"id": str(c["_id"]), "name": c.get("name"), "description": c.get("description", "")} for c in cats],
+    }
+
+
+@api.post("/public/subscribe/{api_key}")
+async def public_subscribe(api_key: str, data: PublicSubscribeInput):
+    company = await db.companies.find_one({"api_key": api_key})
+    if not company or company.get("subscribe_active") is False:
+        raise HTTPException(status_code=404, detail="Form not found")
+    company_id = str(company["_id"])
+    email = data.email.lower()
+    valid_cats = {str(c["_id"]) for c in await db.categories.find({"company_id": company_id}).to_list(500)}
+    cats = [c for c in data.category_ids if c in valid_cats]
+    existing = await db.contacts.find_one({"company_id": company_id, "email": email})
+    if existing:
+        await db.contacts.update_one({"_id": existing["_id"]}, {
+            "$set": {"status": "subscribed", "first_name": data.first_name or existing.get("first_name", ""),
+                     "last_name": data.last_name or existing.get("last_name", ""),
+                     "city": data.city or existing.get("city", "")},
+            "$addToSet": {"categories": {"$each": cats}}})
+    else:
+        await db.contacts.insert_one({
+            "company_id": company_id, "email": email, "first_name": data.first_name,
+            "last_name": data.last_name, "city": data.city, "company": "", "tags": [],
+            "categories": cats, "status": "subscribed", "source": "subscribe_form", "created_at": now_iso()})
+    await db.companies.update_one({"_id": company["_id"]},
+                                  {"$set": {"api_connected": True, "api_last_used": now_iso()}})
+    return {"ok": True, "thankyou": company.get("form_thankyou") or "Thanks for subscribing!"}
+
+
+PLAN_REQUEST_EMAIL = "clara.global@koodh.com"
+
+
+def _plan_request_html(user_email, user_name, company_name, current, requested, message):
+    from html import escape
+    rows = "".join(
+        f'<tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:150px">{k}</td>'
+        f'<td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600">{escape(str(v))}</td></tr>'
+        for k, v in [("User", user_name or "—"), ("Email", user_email), ("Company", company_name or "—"),
+                     ("Current plan", current), ("Requested plan", requested)])
+    note = (f'<div style="margin-top:16px;color:#334155;font-size:14px;line-height:1.6">'
+            f'<b>Message:</b><br>{escape(message)}</div>') if message else ""
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="background:#f1f5f9;padding:32px 0;font-family:Arial,Helvetica,sans-serif"><tr><td align="center">'
+        '<table role="presentation" width="520" cellpadding="0" cellspacing="0" '
+        'style="background:#ffffff;border-radius:20px;overflow:hidden;max-width:520px">'
+        '<tr><td style="padding:32px 40px 4px"><div style="font-size:22px;font-weight:700;color:#0f172a">'
+        'Plan change request</div><div style="font-size:14px;color:#e11d48;margin-top:2px">Clara Campaigns</div></td></tr>'
+        f'<tr><td style="padding:12px 40px"><table role="presentation" width="100%">{rows}</table>{note}</td></tr>'
+        '<tr><td style="padding:16px 40px 32px;color:#6b7280;font-size:12px">'
+        'A customer requested a plan change. For paid plans, contact them to discuss and send a quote.'
+        '</td></tr></table></td></tr></table>'
+    )
+
+
+@api.post("/plan/request")
+async def request_plan_change(data: PlanRequestInput, s=Depends(scope)):
+    user = s["user"]
+    full = await db.users.find_one({"_id": oid(user["id"])})
+    current = (full.get("license") or {}).get("plan", "free")
+    requested = data.plan.lower().strip()
+    paid = requested in ("pro", "enterprise")
+    company_name = s["company"].get("name")
+    await db.plan_requests.insert_one({
+        "user_id": user["id"], "email": full["email"], "company_id": s["company_id"],
+        "current_plan": current, "requested_plan": requested, "message": data.message,
+        "status": "pending", "created_at": now_iso()})
+    try:
+        await email_util.send_email(
+            to=PLAN_REQUEST_EMAIL,
+            subject=f"Plan change request: {full['email']} → {requested}",
+            html=_plan_request_html(full["email"], full.get("name"), company_name, current, requested, data.message))
+    except Exception as exc:
+        logger.error(f"plan request email failed: {exc}")
+    return {"ok": True, "paid": paid, "plan": requested}
+
+
+# ============ ADMIN: users & licenses ============@api.get("/admin/users")
 async def admin_users(user=Depends(A.get_current_user)):
     require_admin(user)
     rows = await db.users.find({}).sort("created_at", -1).to_list(2000)
@@ -721,10 +926,12 @@ def MS_storage_logo(company):
     return storage.get_object(company["logo_path"])
 
 
-async def _start_send(campaign, company_id, contact_ids, user):
+async def _start_send(campaign, company_id, contact_ids, user, category_ids=None):
     q = {"company_id": company_id, "status": {"$ne": "unsubscribed"}}
     if contact_ids:
         q["_id"] = {"$in": [oid(c) for c in contact_ids]}
+    elif category_ids:
+        q["categories"] = {"$in": category_ids}
     contacts = await db.contacts.find(q).to_list(10000)
     if not contacts:
         return {"error": "No recipients selected"}
@@ -760,7 +967,7 @@ async def send_campaign(campaign_id: str, data: SendInput, s=Depends(scope)):
     if not campaign.get("html"):
         raise HTTPException(status_code=400, detail="Campaign has no content yet")
 
-    res = await _start_send(campaign, s["company_id"], data.contact_ids, user)
+    res = await _start_send(campaign, s["company_id"], data.contact_ids, user, data.category_ids)
     if res.get("error"):
         raise HTTPException(status_code=400, detail=res["error"])
     return res
@@ -780,7 +987,7 @@ async def schedule_campaign(campaign_id: str, data: ScheduleInput, s=Depends(sco
         raise HTTPException(status_code=400, detail="Campaign has no content yet")
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {
         "status": "scheduled", "scheduled_at": data.scheduled_at,
-        "scheduled_contacts": data.contact_ids}})
+        "scheduled_contacts": data.contact_ids, "scheduled_categories": data.category_ids}})
     return {"ok": True, "scheduled_at": data.scheduled_at}
 
 
@@ -981,7 +1188,7 @@ async def _scheduler_loop():
                 if not q_info["unlimited"] and q_info["remaining"] <= 0:
                     await db.campaigns.update_one({"_id": camp["_id"]}, {"$set": {"status": "failed"}})
                     continue
-                res = await _start_send(camp, camp.get("company_id"), camp.get("scheduled_contacts"), udict)
+                res = await _start_send(camp, camp.get("company_id"), camp.get("scheduled_contacts"), udict, camp.get("scheduled_categories"))
                 if res.get("error"):
                     await db.campaigns.update_one({"_id": camp["_id"]}, {"$set": {"status": "failed"}})
         except Exception as exc:
@@ -1001,6 +1208,8 @@ async def startup():
     await db.deliveries.create_index("track_id", unique=True)
     await db.deliveries.create_index([("campaign_id", 1)])
     await db.companies.create_index("owner_id")
+    await db.companies.create_index("api_key", unique=True, sparse=True)
+    await db.categories.create_index([("company_id", 1)])
     await db.password_reset_tokens.create_index("expires_at")
     await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
     await _seed_admin("ADMIN_EMAIL", "ADMIN_PASSWORD")
