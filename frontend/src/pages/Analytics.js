@@ -23,37 +23,34 @@ export default function Analytics() {
     return () => clearInterval(t);
   }, [id]);
 
-  if (!data) return <AppLayout title="Statistieken"><div className="text-slate-400">Laden…</div></AppLayout>;
+  if (!data) return <AppLayout title="Analytics"><div className="text-slate-400">Loading…</div></AppLayout>;
 
   const t = data.totals;
   const chart = [
-    { name: "Verzonden", value: t.sent, color: "#6366F1" },
-    { name: "Geopend", value: t.opened, color: "#10B981" },
-    { name: "Geklikt", value: t.clicked, color: "#F59E0B" },
+    { name: "Sent", value: t.sent, color: "#E11D48" },
+    { name: "Opened", value: t.opened, color: "#10B981" },
+    { name: "Clicked", value: t.clicked, color: "#F59E0B" },
   ];
   const cards = [
-    { label: "Verzonden", value: t.sent, icon: Send, color: "text-indigo-600 bg-indigo-50" },
-    { label: "Geopend", value: `${t.opened} (${t.open_rate}%)`, icon: MailOpen, color: "text-emerald-600 bg-emerald-50" },
-    { label: "Geklikt", value: `${t.clicked} (${t.click_rate}%)`, icon: MousePointerClick, color: "text-amber-600 bg-amber-50" },
-    { label: "Mislukt", value: t.failed, icon: AlertCircle, color: "text-rose-600 bg-rose-50" },
+    { label: "Sent", value: t.sent, icon: Send, color: "text-rose-600 bg-rose-50" },
+    { label: "Opened", value: `${t.opened} (${t.open_rate}%)`, icon: MailOpen, color: "text-emerald-600 bg-emerald-50" },
+    { label: "Clicked", value: `${t.clicked} (${t.click_rate}%)`, icon: MousePointerClick, color: "text-amber-600 bg-amber-50" },
+    { label: "Failed", value: t.failed, icon: AlertCircle, color: "text-rose-600 bg-rose-50" },
   ];
 
   return (
-    <AppLayout title="Campagne-statistieken">
+    <AppLayout title="Campaign Analytics" subtitle={data.campaign.name}>
       <button onClick={() => navigate("/campaigns")} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 mb-4">
-        <ArrowLeft className="h-4 w-4" /> Terug naar campagnes
+        <ArrowLeft className="h-4 w-4" /> Back to campaigns
       </button>
 
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="font-display text-xl font-bold text-slate-900">{data.campaign.name}</h2>
-          <p className="text-sm text-slate-500">{data.campaign.subject}</p>
-        </div>
+        <p className="text-sm text-slate-500">{data.campaign.subject}</p>
         <div className="flex items-center gap-2">
           {data.campaign.simulated && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Simulatiemodus</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Simulation mode</span>
           )}
-          <button onClick={load} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><RefreshCw className="h-4 w-4" /></button>
+          <button onClick={load} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><RefreshCw className="h-4 w-4" /></button>
         </div>
       </div>
 
@@ -69,7 +66,7 @@ export default function Analytics() {
 
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="font-display font-semibold text-slate-900 mb-4">Overzicht</h3>
+          <h3 className="font-display font-semibold text-slate-900 mb-4">Overview</h3>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={chart}>
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#64748B" }} axisLine={false} tickLine={false} />
@@ -83,14 +80,14 @@ export default function Analytics() {
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="font-display font-semibold text-slate-900 mb-4">Meest geklikte links</h3>
+          <h3 className="font-display font-semibold text-slate-900 mb-4">Top clicked links</h3>
           {!data.top_links.length ? (
-            <p className="text-sm text-slate-400">Nog geen kliks.</p>
+            <p className="text-sm text-slate-400">No clicks yet.</p>
           ) : (
             <div className="space-y-2">
               {data.top_links.map((l, i) => (
                 <div key={i} className="flex items-center justify-between text-sm">
-                  <a href={l.url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline truncate flex items-center gap-1 max-w-[70%]">
+                  <a href={l.url} target="_blank" rel="noreferrer" className="text-rose-600 hover:underline truncate flex items-center gap-1 max-w-[70%]">
                     <ExternalLink className="h-3 w-3 shrink-0" /> <span className="truncate">{l.url}</span>
                   </a>
                   <span className="text-slate-700 font-medium">{l.clicks}</span>
@@ -103,18 +100,18 @@ export default function Analytics() {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="font-display font-semibold text-slate-900">Ontvangers ({data.recipients.length})</h3>
+          <h3 className="font-display font-semibold text-slate-900">Recipients ({data.recipients.length})</h3>
         </div>
         {!data.recipients.length ? (
-          <div className="p-10 text-center text-slate-400 text-sm">Nog niet verstuurd.</div>
+          <div className="p-10 text-center text-slate-400 text-sm">Not sent yet.</div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
               <tr>
-                <th className="text-left px-6 py-3 font-medium">Ontvanger</th>
+                <th className="text-left px-6 py-3 font-medium">Recipient</th>
                 <th className="text-left px-6 py-3 font-medium">Status</th>
-                <th className="text-center px-6 py-3 font-medium">Geopend</th>
-                <th className="text-center px-6 py-3 font-medium">Geklikt</th>
+                <th className="text-center px-6 py-3 font-medium">Opened</th>
+                <th className="text-center px-6 py-3 font-medium">Clicked</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

@@ -67,5 +67,9 @@ class CampaignInput(BaseModel):
     html: str = ""
 
 
+class CompanyInput(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+
+
 class SendInput(BaseModel):
     contact_ids: Optional[List[str]] = None  # None = all contacts

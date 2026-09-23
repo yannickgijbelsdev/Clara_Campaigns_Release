@@ -18,7 +18,7 @@ export default function Contacts() {
   const add = async () => {
     try {
       await api.post("/contacts", { ...form, tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean) });
-      toast.success("Contact toegevoegd");
+      toast.success("Contact added");
       setShowAdd(false);
       setForm({ email: "", first_name: "", last_name: "", company: "", tags: "" });
       load();
@@ -29,7 +29,7 @@ export default function Contacts() {
 
   const remove = async (id) => {
     await api.delete(`/contacts/${id}`);
-    toast.success("Contact verwijderd");
+    toast.success("Contact removed");
     load();
   };
 
@@ -40,7 +40,7 @@ export default function Contacts() {
     fd.append("file", file);
     try {
       const { data } = await api.post("/contacts/import", fd, { headers: { "Content-Type": "multipart/form-data" } });
-      toast.success(`${data.imported} geïmporteerd, ${data.skipped} overgeslagen`);
+      toast.success(`${data.imported} imported, ${data.skipped} skipped`);
       setShowImport(false);
       load();
     } catch (err) {
@@ -53,23 +53,26 @@ export default function Contacts() {
     [c.email, c.first_name, c.last_name, c.company].join(" ").toLowerCase().includes(q.toLowerCase())
   );
 
+  const actions = (
+    <div className="flex gap-2">
+      <button data-testid="import-csv-btn" onClick={() => setShowImport(true)}
+        className="inline-flex items-center gap-2 text-sm px-4 py-2 border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
+        <Upload className="h-4 w-4" /> Import CSV
+      </button>
+      <button data-testid="add-contact-btn" onClick={() => setShowAdd(true)}
+        className="inline-flex items-center gap-2 text-sm px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full transition-colors">
+        <Plus className="h-4 w-4" /> Contact
+      </button>
+    </div>
+  );
+
   return (
-    <AppLayout title="Contacten">
-      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
+    <AppLayout title="Contacts" subtitle={`${contacts.length} recipient(s)`} actions={actions}>
+      <div className="mb-5">
         <div className="relative">
           <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input data-testid="contact-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Zoek contacten…"
-            className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm w-72 focus:ring-2 focus:ring-indigo-500 outline-none" />
-        </div>
-        <div className="flex gap-2">
-          <button data-testid="import-csv-btn" onClick={() => setShowImport(true)}
-            className="inline-flex items-center gap-2 text-sm px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-            <Upload className="h-4 w-4" /> CSV importeren
-          </button>
-          <button data-testid="add-contact-btn" onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 text-sm px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-            <Plus className="h-4 w-4" /> Contact
-          </button>
+          <input data-testid="contact-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search contacts…"
+            className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm w-full max-w-sm focus:ring-2 focus:ring-rose-500 outline-none" />
         </div>
       </div>
 
@@ -77,15 +80,15 @@ export default function Contacts() {
         {!filtered.length ? (
           <div className="p-16 text-center text-slate-400">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-40" />
-            <p className="text-sm">Nog geen contacten. Voeg toe of importeer een CSV.</p>
+            <p className="text-sm">No contacts yet. Add one or import a CSV.</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
               <tr>
-                <th className="text-left px-5 py-3 font-medium">E-mail</th>
-                <th className="text-left px-5 py-3 font-medium">Naam</th>
-                <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Bedrijf</th>
+                <th className="text-left px-5 py-3 font-medium">Email</th>
+                <th className="text-left px-5 py-3 font-medium">Name</th>
+                <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Company</th>
                 <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Tags</th>
                 <th className="px-5 py-3"></th>
               </tr>
@@ -99,7 +102,7 @@ export default function Contacts() {
                   <td className="px-5 py-3 hidden md:table-cell">
                     <div className="flex gap-1 flex-wrap">
                       {(c.tags || []).map((t) => (
-                        <span key={t} className="text-[11px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">{t}</span>
+                        <span key={t} className="text-[11px] bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">{t}</span>
                       ))}
                     </div>
                   </td>
@@ -116,30 +119,30 @@ export default function Contacts() {
       </div>
 
       {showAdd && (
-        <Modal title="Contact toevoegen" onClose={() => setShowAdd(false)}>
+        <Modal title="Add contact" onClose={() => setShowAdd(false)}>
           <div className="space-y-3">
-            <F label="E-mail *" testid="new-email"><input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inp} /></F>
+            <F label="Email *" testid="new-email"><input data-testid="new-email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inp} /></F>
             <div className="grid grid-cols-2 gap-3">
-              <F label="Voornaam"><input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className={inp} /></F>
-              <F label="Achternaam"><input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className={inp} /></F>
+              <F label="First name"><input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className={inp} /></F>
+              <F label="Last name"><input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className={inp} /></F>
             </div>
-            <F label="Bedrijf"><input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className={inp} /></F>
-            <F label="Tags (komma-gescheiden)"><input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className={inp} placeholder="klant, nieuwsbrief" /></F>
+            <F label="Company"><input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className={inp} /></F>
+            <F label="Tags (comma-separated)"><input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className={inp} placeholder="customer, newsletter" /></F>
           </div>
           <div className="flex justify-end gap-2 mt-5">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuleren</button>
-            <button data-testid="save-contact-btn" onClick={add} className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">Opslaan</button>
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
+            <button data-testid="save-contact-btn" onClick={add} className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-full">Save</button>
           </div>
         </Modal>
       )}
 
       {showImport && (
-        <Modal title="CSV importeren" onClose={() => setShowImport(false)}>
+        <Modal title="Import CSV" onClose={() => setShowImport(false)}>
           <div data-testid="csv-dropzone" onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-slate-300 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
+            className="border-2 border-dashed border-slate-300 rounded-xl p-10 text-center cursor-pointer hover:border-rose-400 hover:bg-rose-50/40 transition-colors">
             <FileSpreadsheet className="h-10 w-10 mx-auto mb-3 text-slate-400" />
-            <p className="text-sm text-slate-600 font-medium">Klik om een CSV-bestand te kiezen</p>
-            <p className="text-xs text-slate-400 mt-1">Kolommen: email, first_name, last_name, company, tags</p>
+            <p className="text-sm text-slate-600 font-medium">Click to choose a CSV file</p>
+            <p className="text-xs text-slate-400 mt-1">Columns: email, first_name, last_name, company, tags</p>
             <input ref={fileRef} data-testid="csv-file-input" type="file" accept=".csv" className="hidden" onChange={onFile} />
           </div>
         </Modal>
@@ -148,7 +151,7 @@ export default function Contacts() {
   );
 }
 
-const inp = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none";
+const inp = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none";
 function F({ label, children }) { return <div><label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>{children}</div>; }
 function Modal({ title, onClose, children }) {
   return (

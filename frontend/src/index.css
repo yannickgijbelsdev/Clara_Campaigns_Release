@@ -5,11 +5,9 @@
 @tailwind utilities;
 
 :root {
-    --clara-primary: #4F46E5;
-    --clara-primary-hover: #4338CA;
-    --clara-sidebar: #0F172A;
-    --clara-sidebar-active: #1E293B;
-    --clara-light-bg: #F8FAFC;
+    --clara-primary: #E11D48;
+    --clara-primary-hover: #BE123C;
+    --clara-light-bg: #FFFFFF;
     --o365-blue: #0078D4;
 }
 
@@ -37,7 +35,7 @@ h1, h2, h3, h4, .font-display {
         --card-foreground: 222 47% 11%;
         --popover: 0 0% 100%;
         --popover-foreground: 222 47% 11%;
-        --primary: 243 75% 59%;
+        --primary: 347 77% 50%;
         --primary-foreground: 0 0% 100%;
         --secondary: 210 40% 96%;
         --secondary-foreground: 222 47% 11%;
@@ -49,7 +47,7 @@ h1, h2, h3, h4, .font-display {
         --destructive-foreground: 0 0% 98%;
         --border: 214 32% 91%;
         --input: 214 32% 91%;
-        --ring: 243 75% 59%;
+        --ring: 347 77% 50%;
         --radius: 0.65rem;
     }
 }

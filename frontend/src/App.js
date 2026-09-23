@@ -10,6 +10,7 @@ import Contacts from "@/pages/Contacts";
 import Integrations from "@/pages/Integrations";
 import Settings from "@/pages/Settings";
 import Analytics from "@/pages/Analytics";
+import Admin from "@/pages/Admin";
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -43,6 +44,7 @@ function App() {
             <Route path="/contacts" element={<Protected><Contacts /></Protected>} />
             <Route path="/integrations" element={<Protected><Integrations /></Protected>} />
             <Route path="/settings" element={<Protected><Settings /></Protected>} />
+            <Route path="/admin" element={<Protected><Admin /></Protected>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </AuthProvider>

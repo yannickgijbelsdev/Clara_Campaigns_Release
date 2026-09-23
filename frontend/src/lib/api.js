@@ -8,6 +8,8 @@ const api = axios.create({ baseURL: API, withCredentials: true });
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("clara_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const company = localStorage.getItem("clara_company");
+  if (company) config.headers["X-Company-Id"] = company;
   return config;
 });
 
