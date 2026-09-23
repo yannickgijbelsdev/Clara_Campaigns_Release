@@ -8,7 +8,7 @@ import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { toast } from "sonner";
 import {
   Type, AlignLeft, Image as ImageIcon, MousePointer, Minus, Space, Images,
-  Save, Send, Code2, Eye, Trash2, ArrowUp, ArrowDown, Loader2, X, Link2, Check, AlertTriangle, User,
+  Save, Send, Code2, Eye, Trash2, ArrowUp, ArrowDown, Loader2, X, Link2, Check, AlertTriangle, User, Upload,
 } from "lucide-react";
 
 const MERGE_TAGS = [
@@ -325,6 +325,38 @@ function Inp({ testid, value, onChange, placeholder, type = "text" }) {
     onChange={(e) => onChange(e.target.value)}
     className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none" />;
 }
+function ImageUploader({ testid, onUploaded }) {
+  const ref = useRef();
+  const [busy, setBusy] = useState(false);
+  const onFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file."); e.target.value = ""; return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image too large (max 5 MB)."); e.target.value = ""; return; }
+    setBusy(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const { data } = await api.post("/upload/image", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      onUploaded(data.url);
+      toast.success("Image uploaded");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+    setBusy(false);
+    e.target.value = "";
+  };
+  return (
+    <div className="mb-3">
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={onFile} data-testid={`${testid}-file`} />
+      <button type="button" onClick={() => ref.current?.click()} disabled={busy} data-testid={testid}
+        className="w-full inline-flex items-center justify-center gap-2 text-sm border border-slate-200 hover:border-[#7380b6] hover:text-[#7380b6] text-slate-600 rounded-lg px-3 py-2 transition-colors disabled:opacity-60">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+        {busy ? "Uploading…" : "Upload image"}
+      </button>
+    </div>
+  );
+}
 function AlignPicker({ value, onChange }) {
   return (
     <div className="flex gap-1 mb-3">
@@ -364,6 +396,7 @@ function PropsEditor({ block, update }) {
       </>);
     case "logo":
       return (<>
+        <ImageUploader testid="upload-logo-btn" onUploaded={(url) => update("src", url)} />
         <L>Image URL</L><Inp testid="prop-src" value={p.src} onChange={(v) => update("src", v)} placeholder="https://…/logo.png" />
         <L>Link (optional)</L><Inp value={p.link} onChange={(v) => update("link", v)} placeholder="https://" />
         <L>Width (px)</L><Inp type="number" value={p.width} onChange={(v) => update("width", Number(v))} />
@@ -371,6 +404,7 @@ function PropsEditor({ block, update }) {
       </>);
     case "image":
       return (<>
+        <ImageUploader testid="upload-image-btn" onUploaded={(url) => update("src", url)} />
         <L>Image URL</L><Inp testid="prop-src" value={p.src} onChange={(v) => update("src", v)} placeholder="https://…/photo.jpg" />
         <L>Alt text</L><Inp value={p.alt} onChange={(v) => update("alt", v)} />
         <L>Link (optional)</L><Inp value={p.link} onChange={(v) => update("link", v)} placeholder="https://" />

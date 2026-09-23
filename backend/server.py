@@ -425,6 +425,23 @@ async def upload_company_logo(file: UploadFile = File(...), s=Depends(scope)):
     return {"ok": True, "logo_version": version, "logo_url": result["url"]}
 
 
+@api.post("/upload/image")
+async def upload_newsletter_image(file: UploadFile = File(...), s=Depends(scope)):
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please upload an image file.")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 5 MB).")
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in (file.filename or "") else "png").lower()
+    path = f"{storage.APP_NAME}/newsletter/{s['company_id']}/{uuid.uuid4()}.{ext}"
+    try:
+        result = storage.put_object(path, data, file.content_type or "image/png")
+    except Exception as exc:
+        logger.error(f"newsletter image upload failed: {exc}")
+        raise HTTPException(status_code=502, detail="Upload failed. Please try again.")
+    return {"ok": True, "url": result["url"]}
+
+
 @api.get("/company/{company_id}/logo")
 async def get_company_logo(company_id: str):
     try:
