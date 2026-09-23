@@ -84,6 +84,13 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Requires a production redeploy to take effect.
 - Verified: iteration_9.json — 8/8 backend (CORS reflection + register + first-login MFA + admin login + /auth/me).
 
+## Changelog — 2026-09-23 (Iteration 10) — Production 502 backend crash hardening
+- PRODUCTION diagnosis: campaigns.koodh.com returned HTTP 502 on ALL /api routes (frontend / = 200) → the production backend process was down / crash-looping at startup. This produced the "Er ging iets mis" on login/register.
+- Fix 1 (ms_graph.py): removed module-level Fernet(os.environ["TOKEN_ENCRYPTION_KEY"]) — now lazy via _get_fernet(). A missing TOKEN_ENCRYPTION_KEY in prod can no longer crash the import/startup.
+- Fix 2 (server.py startup): wrapped index creation and _seed_admin in try/except so a failing create_index or seed logs and continues instead of aborting FastAPI lifespan startup (the 502 crash-loop).
+- Requires a production REDEPLOY. If it still 502s afterwards, read the deployed backend logs for the specific startup exception (now logged, not fatal).
+- Verified: iteration_10.json — 8/8 backend (boots without TOKEN_ENCRYPTION_KEY; register + MFA + admin login + /me + CORS all pass).
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.
