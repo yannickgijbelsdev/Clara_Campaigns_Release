@@ -6,6 +6,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import GlobalSearch from "@/components/GlobalSearch";
 import Onboarding from "@/components/Onboarding";
+import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { startTour } from "@/lib/useTour";
 import { toast } from "sonner";
 import {
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 
 export const avatarUrl = (u) =>
-  u?.avatar_version ? `${process.env.REACT_APP_BACKEND_URL}/api/avatar/${u.id}?v=${u.avatar_version}` : null;
+  u?.avatar_url ? `${u.avatar_url}?v=${u.avatar_version || 0}` : null;
 
 const BASE_NAV = [
   { to: "/dashboard", label: "Dashboard" },
@@ -28,6 +29,7 @@ function WorkspaceSwitcher() {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [switching, setSwitching] = useState(false);
   const ref = useRef();
 
   useEffect(() => {
@@ -39,9 +41,10 @@ function WorkspaceSwitcher() {
   const current = companies.find((c) => c.id === activeCompany);
 
   const switchTo = (id) => {
+    if (id === activeCompany) { setOpen(false); return; }
     setActiveCompany(id);
     setOpen(false);
-    window.location.reload();
+    setSwitching(true);
   };
 
   const addCompany = async () => {
@@ -59,6 +62,10 @@ function WorkspaceSwitcher() {
 
   return (
     <div className="relative" ref={ref}>
+      <ProgressOverlay open={switching} title="Switching workspace"
+        subtitle={`Loading ${current?.name || "your workspace"}…`}
+        steps={["Loading campaigns", "Loading contacts", "Refreshing dashboard"]}
+        stepMs={500} onComplete={() => window.location.reload()} />
       <button data-testid="workspace-switcher" onClick={() => setOpen(!open)}
         className="flex items-center gap-2 pl-2.5 pr-2.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors max-w-[220px]">
         <Globe className="h-4 w-4 text-slate-400 shrink-0" />

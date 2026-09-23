@@ -218,10 +218,10 @@ async def upload_avatar(file: UploadFile = File(...), user=Depends(A.get_current
         raise HTTPException(status_code=502, detail="Upload failed. Please try again.")
     version = int(time.time())
     await db.users.update_one({"_id": oid(user["id"])},
-                              {"$set": {"avatar_path": result["path"],
+                              {"$set": {"avatar_path": result["path"], "avatar_url": result["url"],
                                         "avatar_type": file.content_type or "image/png",
                                         "avatar_version": version}})
-    return {"ok": True, "avatar_version": version}
+    return {"ok": True, "avatar_version": version, "avatar_url": result["url"]}
 
 
 @api.get("/avatar/{user_id}")
@@ -369,6 +369,7 @@ def _branding_out(company):
         "brand_accent": company.get("brand_accent") or "#0F172A",
         "website": company.get("website") or "",
         "logo_version": company.get("logo_version"),
+        "logo_url": company.get("logo_url"),
         "has_logo": bool(company.get("logo_path")),
     }
 
@@ -412,10 +413,10 @@ async def upload_company_logo(file: UploadFile = File(...), s=Depends(scope)):
         raise HTTPException(status_code=502, detail="Upload failed. Please try again.")
     version = int(time.time())
     await db.companies.update_one({"_id": s["company"]["_id"]},
-                                  {"$set": {"logo_path": result["path"],
+                                  {"$set": {"logo_path": result["path"], "logo_url": result["url"],
                                             "logo_type": file.content_type or "image/png",
                                             "logo_version": version}})
-    return {"ok": True, "logo_version": version}
+    return {"ok": True, "logo_version": version, "logo_url": result["url"]}
 
 
 @api.get("/company/{company_id}/logo")
@@ -510,7 +511,7 @@ async def ms_start(user=Depends(A.get_current_user)):
 
 @api.get("/oauth/microsoft/callback")
 async def ms_callback(code: str = Query(None), state: str = Query(None), error: str = Query(None)):
-    frontend = os.environ["FRONTEND_URL"]
+    frontend = os.environ.get("PUBLIC_BASE_URL") or os.environ["FRONTEND_URL"]
     if error:
         return RedirectResponse(f"{frontend}/integrations?error={error}")
     record = await db.oauth_states.find_one_and_delete({"_id": state})
@@ -704,8 +705,8 @@ async def _run_send(campaign, contacts, user_id, company_id, real, token, sender
             "clicked_links": [], "status": "sending", "simulated": not real, "created_at": now_iso(),
         }
         await db.deliveries.insert_one(delivery)
-        unsub_url = f"{backend}/api/unsubscribe/{A.make_unsub_token(company_id, str(ct['_id']))}"
-        html = MS.personalize_html(campaign.get("html", ""), track_id, backend, company, public_base, unsub_url)
+        unsub_url = f"{public_base}/api/unsubscribe/{A.make_unsub_token(company_id, str(ct['_id']))}"
+        html = MS.personalize_html(campaign.get("html", ""), track_id, public_base, company, public_base, unsub_url)
         try:
             if real:
                 await MS.send_mail(token, sender, campaign.get("subject", ""), html, ct["email"], delivery["name"], attachments)

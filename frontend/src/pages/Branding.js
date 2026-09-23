@@ -9,7 +9,7 @@ import { Palette, Camera, Loader2, Globe, Check, Building2 } from "lucide-react"
 const inp = "w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none";
 
 export const companyLogoUrl = (b) =>
-  b?.has_logo ? `${process.env.REACT_APP_BACKEND_URL}/api/company/${b.id}/logo?v=${b.logo_version || 0}` : null;
+  b?.logo_url ? `${b.logo_url}?v=${b.logo_version || 0}` : null;
 
 export function BrandingForm({ onSaved, compact = false }) {
   const { loadCompanies } = useAuth();

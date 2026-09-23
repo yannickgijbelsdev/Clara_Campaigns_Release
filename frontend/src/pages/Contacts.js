@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History } from "lucide-react";
 
@@ -15,6 +16,7 @@ export default function Contacts() {
   const fileRef = useRef();
   const [historyView, setHistoryView] = useState(null); // { contact, items }
   const [group, setGroup] = useState("all"); // all | subscribed | unsubscribed
+  const confirm = useConfirm();
 
   const load = () => api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -68,7 +70,7 @@ export default function Contacts() {
 
   const deleteAll = async () => {
     if (!contacts.length) return;
-    if (!window.confirm(`Delete ALL ${contacts.length} contacts? This cannot be undone.`)) return;
+    if (!(await confirm({ title: "Delete all contacts?", message: `This permanently removes all ${contacts.length} contacts. This cannot be undone.`, confirmText: "Delete all" }))) return;
     try {
       const { data } = await api.delete("/contacts");
       toast.success(`Deleted ${data.deleted} contacts`);

@@ -5,7 +5,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Link2, Loader2, RefreshCw, Unplug, BookOpen, Copy } from "lucide-react";
 
-const redirectUri = `${process.env.REACT_APP_BACKEND_URL}/api/oauth/microsoft/callback`;
+const redirectUri = "https://campaigns.koodh.com/api/oauth/microsoft/callback";
 
 export default function Integrations() {
   const [status, setStatus] = useState(null);

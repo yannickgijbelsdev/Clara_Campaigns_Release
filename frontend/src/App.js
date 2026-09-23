@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { CheckCircle2, XCircle, Info, Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
 import TopLoadingBar from "@/components/TopLoadingBar";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -37,7 +38,8 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <AuthProvider>
-          <TopLoadingBar />
+          <ConfirmProvider>
+            <TopLoadingBar />
           <Toaster
             position="top-right"
             gap={10}
@@ -64,6 +66,7 @@ function App() {
             <Route path="/admin" element={<Protected><Admin /></Protected>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          </ConfirmProvider>
         </AuthProvider>
       </BrowserRouter>
     </div>

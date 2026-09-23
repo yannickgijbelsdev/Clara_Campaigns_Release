@@ -28,3 +28,18 @@
 16. Hosted subscribe form at campaigns.koodh.com: last name, first name, email, city/municipality
 17. Form shows what they subscribe to; checkboxes to pick categories
 18. Dashboard: create/manage Categories; target categories when sending a newsletter
+
+## DONE (this session, extra)
+- Uploads migrated to Hetzner S3 (bucket koodh-clara, public-read) — avatars + company logos; verified public URL 200. storage.py uses boto3, no Emergent object storage.
+- Email links (tracking, unsubscribe, footer), OAuth redirect URI and post-callback redirect now use PUBLIC_BASE_URL = https://campaigns.koodh.com (no Emergent URLs in emails/instructions). Integrations page shows campaigns.koodh.com redirect URI.
+- All browser window.confirm replaced by custom Clara ConfirmDialog (Campaigns delete, Contacts delete-all, Settings regen backup codes, Admin delete company).
+- Workspace switch shows the ProgressOverlay checklist instead of a hard reload.
+- Newsletter builder pre-applies company branding: new campaign seeds the company logo; Logo/Button/Title block defaults use company logo/website + primary/accent colours (still editable).
+
+## NEXT BIG EPIC — Batch C (public subscription API + docs + editable form + categories)
+- Separate "API" / "Subscribe" menu item with: manual/docs, explanation, the API key + endpoint + embed snippet to put on a website.
+- Generate per-company API key; show it; "connected" checkmark once a site calls the API.
+- Warning/error banner everywhere when the API/subscribe form isn't set up (no website linked).
+- Show the hosted subscribe form URL (campaigns.koodh.com/subscribe/<slug>) + preview.
+- Editable subscribe form (like the newsletter builder): fields last name, first name, email, city; category checkboxes; shows what they subscribe to.
+- Categories CRUD in dashboard; contacts carry categories; target categories when sending.

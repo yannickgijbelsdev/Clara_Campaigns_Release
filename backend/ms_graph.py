@@ -25,7 +25,8 @@ def _authority() -> str:
 
 
 def _redirect_uri() -> str:
-    return f"{os.environ['BACKEND_URL']}/api/oauth/microsoft/callback"
+    base = os.environ.get("PUBLIC_BASE_URL") or os.environ["BACKEND_URL"]
+    return f"{base}/api/oauth/microsoft/callback"
 
 
 def msal_app(cache=None):
@@ -124,7 +125,10 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
     website = (company.get("website") or "").strip()
     cid = str(company.get("_id")) if company.get("_id") else None
     logo_img = ""
-    if company.get("logo_path") and cid:
+    if company.get("logo_url"):
+        logo_img = (f'<img src="{company.get("logo_url")}" alt="{html_lib.escape(company.get("name",""))}" '
+                    f'width="120" style="max-width:120px;height:auto;display:inline-block;border:0;margin:0 auto 10px;" />')
+    elif company.get("logo_path") and cid:
         logo_img = (f'<img src="{backend_url}/api/company/{cid}/logo" alt="{html_lib.escape(company.get("name",""))}" '
                     f'width="120" style="max-width:120px;height:auto;display:inline-block;border:0;margin:0 auto 10px;" />')
     website_link = (f'<a href="{website}" style="color:#94A3B8;text-decoration:none;">{html_lib.escape(website)}</a><br/>'

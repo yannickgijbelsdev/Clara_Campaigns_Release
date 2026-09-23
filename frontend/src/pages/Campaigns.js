@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import AppLayout, { PrimaryButton } from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { BarChart3, Pencil, Trash2, Plus, Mail } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,13 +18,14 @@ const STATUS = {
 export default function Campaigns() {
   const [items, setItems] = useState([]);
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const load = () => api.get("/campaigns").then((r) => setItems(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const remove = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm("Delete this campaign?")) return;
+    if (!(await confirm({ title: "Delete campaign?", message: "This permanently removes the campaign and its stats.", confirmText: "Delete" }))) return;
     try {
       await api.delete(`/campaigns/${id}`);
       toast.success("Campaign deleted");

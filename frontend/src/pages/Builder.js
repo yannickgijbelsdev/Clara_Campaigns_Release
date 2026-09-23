@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { generateHtml, BLOCK_DEFAULTS, renderBlock } from "@/lib/emailHtml";
+import { companyLogoUrl } from "@/pages/Branding";
 import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { toast } from "sonner";
 import {
@@ -37,6 +38,33 @@ export default function Builder() {
   const [saving, setSaving] = useState(false);
   const [campaignId, setCampaignId] = useState(isNew ? null : id);
   const [createProgress, setCreateProgress] = useState(false);
+  const [branding, setBranding] = useState(null);
+
+  useEffect(() => {
+    api.get("/company/branding").then((r) => setBranding(r.data)).catch(() => {});
+  }, []);
+
+  // Pre-apply company branding to block defaults (user can still change it).
+  const brandDefaults = (type) => {
+    const d = { ...BLOCK_DEFAULTS[type] };
+    if (!branding) return d;
+    if (type === "logo") {
+      const l = companyLogoUrl(branding);
+      if (l) d.src = l;
+      if (branding.website) d.link = branding.website;
+    }
+    if (type === "button" && branding.brand_primary) d.bg = branding.brand_primary;
+    if (type === "title" && branding.brand_accent) d.color = branding.brand_accent;
+    return d;
+  };
+
+  // For a brand-new empty newsletter, start it with the company logo on top.
+  useEffect(() => {
+    if (isNew && branding && blocks.length === 0 && companyLogoUrl(branding)) {
+      setBlocks([{ id: uid(), type: "logo", props: brandDefaults("logo") }]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branding]);
 
   useEffect(() => {
     if (!isNew) {
@@ -51,7 +79,7 @@ export default function Builder() {
   const html = useMemo(() => (mode === "html" ? rawHtml : generateHtml(blocks)), [blocks, mode, rawHtml]);
 
   const addBlock = (type) => {
-    const b = { id: uid(), type, props: { ...BLOCK_DEFAULTS[type] } };
+    const b = { id: uid(), type, props: { ...brandDefaults(type) } };
     setBlocks([...blocks, b]);
     setSelected(b.id);
   };

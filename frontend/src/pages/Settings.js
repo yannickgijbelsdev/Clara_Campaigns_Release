@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useConfirm } from "@/components/ConfirmDialog";
 import {
   ShieldCheck, Mail, User, KeyRound, Camera, Loader2, Check, RefreshCw,
   Copy, Download, X, ScanLine,
@@ -142,12 +143,13 @@ function MfaCard() {
   const [busy, setBusy] = useState(false);
   const [reset, setReset] = useState(null); // { secret, qr } | "confirm"
   const [code, setCode] = useState("");
+  const confirm = useConfirm();
 
   const loadStatus = () => api.get("/auth/mfa/backup-codes/status").then((r) => setStatus(r.data)).catch(() => {});
   useEffect(() => { loadStatus(); }, []);
 
   const regenerate = async () => {
-    if (status?.generated && !window.confirm("Regenerate backup codes? Your old codes will stop working.")) return;
+    if (status?.generated && !(await confirm({ title: "Regenerate backup codes?", message: "Your old backup codes will immediately stop working.", confirmText: "Regenerate", danger: false }))) return;
     setBusy(true);
     try {
       const { data } = await api.post("/auth/mfa/backup-codes");

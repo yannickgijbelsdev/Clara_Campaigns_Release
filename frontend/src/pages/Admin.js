@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { ShieldCheck, Users, Building2, Trash2, BadgeCheck, Ban, Crown, X, Check } from "lucide-react";
 
@@ -15,6 +16,7 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [assign, setAssign] = useState(null); // { user, selected:[] }
+  const confirm = useConfirm();
 
   const load = () => {
     api.get("/admin/users").then((r) => setUsers(r.data)).catch(() => {});
@@ -49,7 +51,7 @@ export default function Admin() {
   };
 
   const removeCompany = async (id) => {
-    if (!window.confirm("Delete this company and all its data?")) return;
+    if (!(await confirm({ title: "Delete company?", message: "This deletes the company and all its campaigns, contacts and data.", confirmText: "Delete" }))) return;
     await api.delete(`/companies/${id}`);
     toast.success("Company deleted");
     load();
