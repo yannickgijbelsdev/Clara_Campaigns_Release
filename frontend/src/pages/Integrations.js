@@ -10,6 +10,12 @@ const SECURITY_OPTIONS = [
   { value: "none", label: "None (unencrypted)" },
 ];
 
+const PRESETS = [
+  { id: "m365", name: "Microsoft 365", host: "smtp.office365.com", port: 587, security: "starttls" },
+  { id: "google", name: "Google Workspace", host: "smtp.gmail.com", port: 587, security: "starttls" },
+  { id: "mailgun", name: "Mailgun", host: "smtp.mailgun.org", port: 587, security: "starttls" },
+];
+
 const EMPTY = { host: "", port: 587, security: "starttls", username: "", password: "", from_email: "", from_name: "", has_password: false, configured: false };
 
 export default function Integrations() {
@@ -27,6 +33,11 @@ export default function Integrations() {
   useEffect(() => { load(); }, []);
 
   const set = (k, v) => setCfg((c) => ({ ...c, [k]: v }));
+
+  const applyPreset = (p) => {
+    setCfg((c) => ({ ...c, host: p.host, port: p.port, security: p.security }));
+    toast.success(`${p.name} settings filled in — add your login and sender`);
+  };
 
   const save = async () => {
     if (!cfg.host.trim() || !cfg.from_email.trim()) return toast.error("Host and sender email are required.");
@@ -98,6 +109,18 @@ export default function Integrations() {
                     </div>
                   </div>
                 )}
+
+                <div className="mb-5">
+                  <div className="text-[11px] font-medium text-slate-600 mb-1.5">Quick setup</div>
+                  <div className="flex flex-wrap gap-2">
+                    {PRESETS.map((p) => (
+                      <button key={p.id} data-testid={`smtp-preset-${p.id}`} type="button" onClick={() => applyPreset(p)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-200 text-slate-700 hover:border-[#7380b6] hover:text-[#7380b6] hover:bg-[#7380b6]/5 rounded-full px-3 py-1.5 transition-colors">
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">
