@@ -15,7 +15,7 @@ import time
 import uuid
 import secrets
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 
 from db import db, client
@@ -48,6 +48,27 @@ def clean(doc):
 def require_admin(user):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Administrator access required")
+
+
+# plan -> (max sends, window days). enterprise/None = unlimited
+PLAN_LIMITS = {"free": (5, 7), "pro": (30, 30)}
+
+
+async def send_quota(user):
+    """Return quota usage for the user's plan."""
+    full = await db.users.find_one({"_id": oid(user["id"])})
+    lic = full.get("license", {}) if full else {}
+    plan = lic.get("plan", "free")
+    active = bool(lic.get("active")) or user.get("role") == "admin"
+    if user.get("role") == "admin" or plan not in PLAN_LIMITS:
+        return {"plan": "enterprise" if user.get("role") == "admin" else plan,
+                "active": active, "unlimited": True, "used": 0, "limit": None,
+                "remaining": None, "window_days": None}
+    limit, days = PLAN_LIMITS[plan]
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    used = await db.send_events.count_documents({"user_id": user["id"], "ts": {"$gte": since}})
+    return {"plan": plan, "active": active, "unlimited": False, "used": used,
+            "limit": limit, "remaining": max(0, limit - used), "window_days": days}
 
 
 async def scope(request: Request, user=Depends(A.get_current_user)):
@@ -412,6 +433,11 @@ async def send_campaign(campaign_id: str, data: SendInput, s=Depends(scope)):
     if user["role"] != "admin" and not lic.get("active"):
         raise HTTPException(status_code=403, detail="No active license. Please contact your administrator.")
 
+    q_info = await send_quota(user)
+    if not q_info["unlimited"] and q_info["remaining"] <= 0:
+        raise HTTPException(status_code=403,
+            detail=f"Send limit reached: {q_info['plan']} plan allows {q_info['limit']} campaigns per {q_info['window_days']} days. Upgrade your license to send more.")
+
     campaign = await db.campaigns.find_one({"_id": oid(campaign_id), "company_id": s["company_id"]})
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -432,8 +458,15 @@ async def send_campaign(campaign_id: str, data: SendInput, s=Depends(scope)):
 
     await db.deliveries.delete_many({"campaign_id": campaign_id})
     await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sending"}})
+    await db.send_events.insert_one({"user_id": user["id"], "company_id": s["company_id"],
+                                     "campaign_id": campaign_id, "ts": now_iso()})
     asyncio.create_task(_run_send(campaign, contacts, user["id"], s["company_id"], real, token, sender))
     return {"ok": True, "recipients": len(contacts), "mode": "office365" if real else "simulation"}
+
+
+@api.get("/quota")
+async def get_quota(user=Depends(A.get_current_user)):
+    return await send_quota(user)
 
 
 @api.get("/campaigns/{campaign_id}/stats")

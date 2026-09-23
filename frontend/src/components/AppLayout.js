@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 
 const BASE_NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/campaigns", label: "Campaigns", icon: Send },
-  { to: "/contacts", label: "Contacts", icon: Users },
-  { to: "/integrations", label: "Office 365", icon: Plug },
-  { to: "/settings", label: "Security", icon: ShieldCheck },
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/campaigns", label: "Campaigns" },
+  { to: "/contacts", label: "Contacts" },
+  { to: "/integrations", label: "Office 365" },
+  { to: "/settings", label: "Security" },
 ];
 
 function WorkspaceSwitcher() {
@@ -117,7 +117,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
   }, []);
 
   const NAV = user?.role === "admin"
-    ? [...BASE_NAV, { to: "/admin", label: "Admin", icon: ShieldAlert }]
+    ? [...BASE_NAV, { to: "/admin", label: "<" }]
     : BASE_NAV;
 
   return (
@@ -127,19 +127,20 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
           <div className="h-6 w-px bg-slate-200" />
           <WorkspaceSwitcher />
+          <div className="h-6 w-px bg-slate-200 hidden md:block" />
 
-          <nav className="hidden md:flex items-center gap-1 ml-2 flex-1">
-            {NAV.map(({ to, label, icon: Icon }) => {
+          <nav className="hidden md:flex items-center gap-1 ml-1 flex-1">
+            {NAV.map(({ to, label }) => {
               const active = location.pathname === to || location.pathname.startsWith(to + "/");
               return (
                 <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
-                  className="relative flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium transition-colors">
+                  className="relative flex items-center px-3.5 py-2 rounded-full text-sm font-medium transition-colors">
                   {active && (
                     <motion.span layoutId="nav-pill" className="absolute inset-0 bg-rose-600 rounded-full"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }} />
                   )}
-                  <span className={`relative z-10 flex items-center gap-2 ${active ? "text-white" : "text-slate-600"}`}>
-                    <Icon className="h-[16px] w-[16px]" /> {label}
+                  <span className={`relative z-10 ${active ? "text-white" : "text-slate-600"}`}>
+                    {label}
                   </span>
                 </NavLink>
               );
@@ -166,10 +167,10 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         </div>
 
         <nav className="md:hidden flex items-center gap-1 px-4 pb-3 overflow-x-auto">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {NAV.map(({ to, label }) => (
             <NavLink key={to} to={to}
-              className={({ isActive }) => `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-rose-600 text-white" : "text-slate-600 bg-slate-100"}`}>
-              <Icon className="h-3.5 w-3.5" />{label}
+              className={({ isActive }) => `flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-rose-600 text-white" : "text-slate-600 bg-slate-100"}`}>
+              {label}
             </NavLink>
           ))}
         </nav>

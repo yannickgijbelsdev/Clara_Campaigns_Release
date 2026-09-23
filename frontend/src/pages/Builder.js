@@ -286,10 +286,12 @@ function SendModal({ campaignId, onClose, onSent }) {
   const [all, setAll] = useState(true);
   const [sending, setSending] = useState(false);
   const [mailbox, setMailbox] = useState(null);
+  const [quota, setQuota] = useState(null);
 
   useEffect(() => {
     api.get("/contacts").then((r) => setContacts(r.data)).catch(() => {});
     api.get("/mailbox").then((r) => setMailbox(r.data)).catch(() => {});
+    api.get("/quota").then((r) => setQuota(r.data)).catch(() => {});
   }, []);
 
   const doSend = async () => {
@@ -315,6 +317,19 @@ function SendModal({ campaignId, onClose, onSent }) {
           <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded"><X className="h-5 w-5" /></button>
         </div>
         <div className="p-5 overflow-y-auto">
+          {quota && !quota.unlimited && (
+            <div className={`mb-4 text-xs rounded-lg p-3 border ${quota.remaining <= 0 ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}>
+              <b className="capitalize">{quota.plan}</b> plan — {quota.used}/{quota.limit} campaigns used in the last {quota.window_days} days.
+              {quota.remaining <= 0
+                ? " Limit reached — upgrade your license to send more."
+                : ` ${quota.remaining} remaining.`}
+            </div>
+          )}
+          {quota && quota.unlimited && (
+            <div className="mb-4 text-xs rounded-lg p-3 border bg-emerald-50 border-emerald-200 text-emerald-700">
+              <b className="capitalize">{quota.plan}</b> plan — unlimited sending.
+            </div>
+          )}
           {mailbox && !mailbox.connected && (
             <div className="mb-4 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-3">
               Office 365 is not connected. The campaign will be sent in <b>simulation mode</b> (tracking works, but no real email goes out). Connect your mailbox via Office 365 to send for real.
