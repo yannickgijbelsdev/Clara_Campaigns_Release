@@ -23,7 +23,13 @@ export function renderBlock(b) {
       const align = p.align || "left";
       const color = p.color || "#334155";
       const raw = p.text || "Enter your text here.";
-      const body = /<[a-z][\s\S]*>/i.test(raw) ? raw : raw.replace(/\n/g, "<br/>");
+      const isHtml = /<[a-z][\s\S]*>/i.test(raw);
+      let body = isHtml ? raw : raw.replace(/\n/g, "<br/>");
+      if (isHtml) {
+        body = body
+          .replace(/<p(\s[^>]*)?>/gi, '<p style="margin:0 0 16px;">')
+          .replace(/<p style="margin:0 0 16px;">\s*<\/p>/gi, '<p style="margin:0 0 16px;">&nbsp;</p>');
+      }
       return `<tr><td style="padding:8px 24px;"><div style="font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7;color:${color};text-align:${align};">${body}</div></td></tr>`;
     }
     case "image": {

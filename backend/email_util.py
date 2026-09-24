@@ -334,12 +334,6 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
     website_link = (f'<a href="{website}" style="color:#94A3B8;text-decoration:none;">{_html.escape(website)}</a><br/>'
                     if website else "")
     unsub_url = unsub_url or f"{backend_url}/api/unsubscribe/{track_id}"
-    prefs_url = company.get("subscribe_url") or (f"{public_base}/subscribe/{company.get('api_key')}" if company.get("api_key") else None)
-    prefs_btn = (
-        f'<a href="{prefs_url}" style="display:inline-block;margin:0 0 12px;padding:9px 20px;'
-        f'background:{company.get("brand_primary") or "#7380b6"};color:#ffffff;border-radius:9999px;'
-        f'text-decoration:none;font-size:13px;font-weight:600;">Manage your preferences</a><br/>'
-        if prefs_url else "")
     clara_brand = (
         f'<a href="{public_base}" style="text-decoration:none;color:#64748B;display:inline-block;margin:2px 0;">'
         f'<img src="{CLARA_MARK}" width="16" height="16" alt="Clara Campaigns" '
@@ -348,10 +342,11 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
     )
     footer = (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
-        '<td align="center" style="padding:22px 24px 8px;font-family:\'Segoe UI\',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">'
-        f'{logo_img}{prefs_btn}{website_link}'
-        f'<span style="color:#94A3B8;">Sent with </span>{clara_brand}<br/>'
-        f'<a href="{unsub_url}" style="color:#94A3B8;text-decoration:underline;">Unsubscribe from these emails</a>'
+        '<td align="center" style="padding:22px 24px 16px;font-family:\'Segoe UI\',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">'
+        f'{logo_img}{website_link}'
+        f'<span style="color:#94A3B8;">Sent with </span>{clara_brand}<br/><br/>'
+        f'<a href="{unsub_url}" style="display:inline-block;padding:9px 22px;border:1px solid #E2E8F0;'
+        f'border-radius:9999px;color:#64748B;text-decoration:none;font-size:12px;font-weight:600;">Unsubscribe</a>'
         '</td></tr></table>'
     )
     pixel = f'<img src="{backend_url}/api/track/open/{track_id}" width="1" height="1" alt="" style="display:none" />'

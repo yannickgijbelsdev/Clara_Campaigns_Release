@@ -509,7 +509,7 @@ def _form_labels(company):
 
 
 def _public_base():
-    return os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BACKEND_URL") or ""
+    return os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BACKEND_URL") or "https://campaigns.koodh.com"
 
 
 def _subscribe_out(company):
@@ -1102,8 +1102,8 @@ async def delete_campaign(campaign_id: str, s=Depends(scope)):
 
 
 async def _run_send(campaign, contacts, user_id, company_id, real, smtp_cfg, company=None):
-    backend = os.environ.get("BACKEND_URL", "")
-    public_base = os.environ.get("PUBLIC_BASE_URL") or backend
+    backend = _public_base()
+    public_base = backend
     cid = str(campaign["_id"])
     for ct in contacts:
         track_id = uuid.uuid4().hex
@@ -1320,11 +1320,9 @@ async def track_click(track_id: str, u: str = Query("")):
     return RedirectResponse(u or os.environ.get("FRONTEND_URL") or _public_base() or "/")
 
 
-@api.get("/unsubscribe/{token}")
-async def unsubscribe(token: str):
+async def _resolve_unsub(token: str):
     company_id, contact_id = A.verify_unsub_token(token)
-    contact = None
-    comp = None
+    contact = comp = None
     if company_id and contact_id:
         try:
             contact = await db.contacts.find_one({"_id": oid(contact_id), "company_id": company_id})
@@ -1332,40 +1330,70 @@ async def unsubscribe(token: str):
         except Exception:
             contact = None
     else:
-        # Backward compatibility: older emails used the raw delivery track_id
         d = await db.deliveries.find_one({"track_id": token})
         if d:
             contact = await db.contacts.find_one({"_id": oid(d["contact_id"])}) if d.get("contact_id") else None
             comp = await db.companies.find_one({"_id": oid(d["company_id"])}) if d.get("company_id") else None
-            await db.deliveries.update_one({"track_id": token},
-                {"$set": {"unsubscribed": True, "unsubscribed_at": now_iso()}})
+    return contact, comp
 
-    if not contact:
-        page = """<!DOCTYPE html><html><head><meta charset="utf-8"/>
+
+_UNSUB_INVALID = """<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/><title>Invalid link</title></head>
 <body style="margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;">
 <div style="max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 10px 40px rgba(15,23,42,0.08);">
 <h1 style="font-size:20px;color:#0F172A;margin:0 0 8px;">This unsubscribe link is invalid</h1>
 <p style="font-size:14px;color:#64748B;line-height:1.6;margin:0;">The link may be incomplete or expired. Please use the unsubscribe link from a recent email.</p>
 </div></body></html>"""
-        return FastResponse(content=page, media_type="text/html", status_code=404)
 
+
+@api.get("/unsubscribe/{token}")
+async def unsubscribe_page(token: str):
+    contact, comp = await _resolve_unsub(token)
+    if not contact:
+        return FastResponse(content=_UNSUB_INVALID, media_type="text/html", status_code=404)
+    company_name = (comp.get("name") if comp else None) or "this sender"
+    if contact.get("status") == "unsubscribed":
+        return FastResponse(content=_unsub_done_page("You were already unsubscribed."), media_type="text/html")
+    email = html_lib.escape(contact.get("email", ""))
+    page = f"""<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/><title>Unsubscribe</title></head>
+<body style="margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;">
+<div style="max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 10px 40px rgba(15,23,42,0.08);">
+<h1 style="font-size:20px;color:#0F172A;margin:0 0 8px;">Unsubscribe</h1>
+<p style="font-size:14px;color:#64748B;line-height:1.6;margin:0 0 24px;">Do you want to stop receiving newsletters from {html_lib.escape(company_name)}?<br/><span style="color:#94A3B8;">{email}</span></p>
+<form method="post" action="">
+<button type="submit" style="border:0;cursor:pointer;background:#DC2626;color:#fff;padding:13px 30px;border-radius:9999px;font-size:15px;font-weight:600;font-family:'Segoe UI',Arial,sans-serif;">Unsubscribe</button>
+</form>
+</div></body></html>"""
+    return FastResponse(content=page, media_type="text/html")
+
+
+@api.post("/unsubscribe/{token}")
+async def unsubscribe_confirm(token: str):
+    contact, comp = await _resolve_unsub(token)
+    if not contact:
+        return FastResponse(content=_UNSUB_INVALID, media_type="text/html", status_code=404)
     company_name = (comp.get("name") if comp else None) or "this sender"
     already = contact.get("status") == "unsubscribed"
     if not already:
         await db.contacts.update_one({"_id": contact["_id"]},
             {"$set": {"status": "unsubscribed", "unsubscribed_at": now_iso()}})
+        await db.deliveries.update_many({"contact_id": str(contact["_id"])},
+            {"$set": {"unsubscribed": True, "unsubscribed_at": now_iso()}})
     msg = ("You were already unsubscribed." if already
            else f"You've been unsubscribed from {html_lib.escape(company_name)}.")
-    page = f"""<!DOCTYPE html><html><head><meta charset="utf-8"/>
+    return FastResponse(content=_unsub_done_page(msg), media_type="text/html")
+
+
+def _unsub_done_page(msg: str) -> str:
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/><title>Unsubscribed</title></head>
 <body style="margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#F5F6F8;">
 <div style="max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 10px 40px rgba(15,23,42,0.08);">
-<div style="width:56px;height:56px;border-radius:16px;background:#FEE2E2;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:26px;">✉️</div>
+<div style="width:56px;height:56px;border-radius:16px;background:#FEE2E2;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:26px;">&#9993;&#65039;</div>
 <h1 style="font-size:20px;color:#0F172A;margin:0 0 8px;">You're unsubscribed</h1>
 <p style="font-size:14px;color:#64748B;line-height:1.6;margin:0;">{msg}<br/>You will no longer receive these newsletters.</p>
 </div></body></html>"""
-    return FastResponse(content=page, media_type="text/html")
 
 
 # ============ DASHBOARD ============
