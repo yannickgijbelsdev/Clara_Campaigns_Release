@@ -576,24 +576,30 @@ function SendModal({ campaignId, html = "", onClose, onSent }) {
             </div>
           )}
 
-          {allCats.length > 0 && (
-            <div className="mt-4">
-              <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">Or target by tag / category</div>
-              <div className="flex flex-wrap gap-2">
-                {allCats.map((c) => {
-                  const on = !!cats[c.id];
-                  return (
-                    <button key={c.id} type="button" data-testid={`send-cat-${c.id}`}
-                      onClick={() => setCats({ ...cats, [c.id]: !on })}
-                      className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full clara-trans ${on ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-                      <span className="h-2 w-2 rounded-full" style={{ background: on ? "#fff" : c.color }} /> {c.name}
-                    </button>
-                  );
-                })}
-              </div>
-              {catIds.length > 0 && <p className="text-xs text-slate-400 mt-2">Sending to everyone in {catIds.length} selected {catIds.length === 1 ? "tag" : "tags"} — {count} subscribed contact(s).</p>}
-            </div>
-          )}
+          <div className="mt-4">
+            <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">Or target by tag / category</div>
+            {allCats.length > 0 ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {allCats.map((c) => {
+                    const on = !!cats[c.id];
+                    return (
+                      <button key={c.id} type="button" data-testid={`send-cat-${c.id}`}
+                        onClick={() => setCats({ ...cats, [c.id]: !on })}
+                        className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full clara-trans ${on ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                        <span className="h-2 w-2 rounded-full" style={{ background: on ? "#fff" : c.color }} /> {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {catIds.length > 0 && <p className="text-xs text-slate-400 mt-2">Sending to everyone in {catIds.length} selected {catIds.length === 1 ? "tag" : "tags"} — {count} subscribed contact(s).</p>}
+              </>
+            ) : (
+              <p data-testid="no-tags-hint" className="text-xs text-slate-400 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                No tags yet. Add tags to contacts when you import a CSV (Contacts → Import), then you can send to just that group.
+              </p>
+            )}
+          </div>
 
           {usesName && missingName.length > 0 && (
             <div data-testid="personalization-warning" className="mt-4 text-xs rounded-lg p-3 border bg-amber-50 border-amber-200 text-amber-800">

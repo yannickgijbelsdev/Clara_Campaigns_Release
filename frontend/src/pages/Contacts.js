@@ -23,6 +23,7 @@ export default function Contacts() {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importCats, setImportCats] = useState({});
+  const [newTag, setNewTag] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const confirm = useConfirm();
@@ -73,7 +74,11 @@ export default function Contacts() {
   };
 
   const pickedCatIds = () => Object.keys(importCats).filter((k) => importCats[k]);
-  const resetImport = () => { setImportFile(null); setImportCats({}); setAnalysis(null); };
+  const resetImport = () => { setImportFile(null); setImportCats({}); setNewTag(""); setAnalysis(null); };
+  const refreshCats = () => api.get("/categories").then((r) => {
+    setCats(r.data);
+    const m = {}; r.data.forEach((c) => { m[c.id] = c.name; }); setCatMap(m);
+  }).catch(() => {});
   const onFilePick = (e) => {
     const f = e.target.files[0];
     if (f) { setImportFile(f); setAnalysis(null); }
@@ -99,12 +104,24 @@ export default function Contacts() {
     if (!importFile) return;
     const start = Date.now();
     setImporting(true);
-    const fd = new FormData();
-    fd.append("file", importFile);
-    fd.append("category_ids", pickedCatIds().join(","));
-    fd.append("overwrite", overwrite ? "true" : "false");
-    fd.append("mode", "import");
     try {
+      // Create a custom tag on the fly if the user typed one.
+      let catIds = pickedCatIds();
+      const tagName = newTag.trim();
+      if (tagName) {
+        const existing = cats.find((c) => (c.name || "").toLowerCase() === tagName.toLowerCase());
+        if (existing) {
+          if (!catIds.includes(existing.id)) catIds = [...catIds, existing.id];
+        } else {
+          const { data } = await api.post("/categories", { name: tagName, color: "#7380b6" });
+          catIds = [...catIds, data.id];
+        }
+      }
+      const fd = new FormData();
+      fd.append("file", importFile);
+      fd.append("category_ids", catIds.join(","));
+      fd.append("overwrite", overwrite ? "true" : "false");
+      fd.append("mode", "import");
       const { data } = await withMinDelay(
         api.post("/contacts/import", fd, { headers: { "Content-Type": "multipart/form-data" } }),
         start, 4000);
@@ -112,6 +129,7 @@ export default function Contacts() {
       setShowImport(false);
       resetImport();
       load();
+      refreshCats();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     } finally {
@@ -286,10 +304,10 @@ export default function Contacts() {
                 <input ref={fileRef} data-testid="csv-file-input" type="file" accept=".csv" className="hidden" onChange={onFilePick} />
               </div>
 
-              {cats.length > 0 && (
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">Assign tags to imported contacts (optional)</div>
-                  <div className="flex flex-wrap gap-2">
+              <div>
+                <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">Assign tags to imported contacts (optional)</div>
+                {cats.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2.5">
                     {cats.map((c) => {
                       const on = !!importCats[c.id];
                       return (
@@ -301,8 +319,12 @@ export default function Contacts() {
                       );
                     })}
                   </div>
-                </div>
-              )}
+                )}
+                <input data-testid="import-new-tag" value={newTag} onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="+ Create a new tag (e.g. Customers) — you can send to it later"
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#7380b6] focus:border-[#7380b6] outline-none" />
+                <p className="text-[11px] text-slate-400 mt-1">Tags let you send a newsletter to just this group later.</p>
+              </div>
 
               <button data-testid="start-import-btn" onClick={analyzeImport} disabled={!importFile || analyzing}
                 className="w-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium px-4 py-2.5 rounded-full flex items-center justify-center gap-2 disabled:opacity-50">
