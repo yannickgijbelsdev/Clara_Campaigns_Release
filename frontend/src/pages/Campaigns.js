@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import AppLayout, { PrimaryButton } from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { BarChart3, Pencil, Trash2, Plus, Mail, Clock } from "lucide-react";
+import { BarChart3, Pencil, Trash2, Plus, Mail, Clock, CalendarX2 } from "lucide-react";
 import { toast } from "sonner";
 
 function ScheduledCountdown({ at }) {
@@ -80,6 +80,18 @@ export default function Campaigns() {
     }
   };
 
+  const unschedule = async (id, e) => {
+    e.stopPropagation();
+    if (!(await confirm({ title: "Cancel schedule?", message: "This campaign will move back to Draft and won't be sent automatically.", confirmText: "Cancel schedule" }))) return;
+    try {
+      await api.post(`/campaigns/${id}/unschedule`);
+      toast.success("Schedule cancelled — moved back to Draft");
+      load();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
+  };
+
   return (
     <AppLayout title="Campaigns" subtitle={`${items.length} campaign(s)`}
       actions={<PrimaryButton testid="new-campaign-btn" icon={Plus} onClick={() => navigate("/campaigns/new")}>New campaign</PrimaryButton>}>
@@ -118,6 +130,12 @@ export default function Campaigns() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {c.status === "scheduled" && (
+                  <button data-testid={`unschedule-${c.id}`} onClick={(e) => unschedule(c.id, e)}
+                    className="inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 border border-sky-200 bg-sky-50 text-sky-700 rounded-full hover:bg-sky-100 transition-colors">
+                    <CalendarX2 className="h-4 w-4" /> Cancel schedule
+                  </button>
+                )}
                 <button data-testid={`analytics-${c.id}`} onClick={() => navigate(`/campaigns/${c.id}/analytics`)}
                   className="inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 border border-slate-200 rounded-full hover:bg-slate-50 text-slate-700 transition-colors">
                   <BarChart3 className="h-4 w-4" /> Analytics
