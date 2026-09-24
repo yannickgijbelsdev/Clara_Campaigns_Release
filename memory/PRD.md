@@ -121,6 +121,16 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Systeem-e-mails (reset, plan-aanvraag) ONGEWIJZIGD (blijven env-var M365 SMTP via email_util.send_email).
 - Getest: iteration_14.json — 11/11 backend (CRUD, verborgen wachtwoord, behoud bij partiële update, test-fout op nep-host, oude MS-endpoints 404, forgot-password 200, simulation send). 100% frontend e2e.
 
+## Changelog — 2026-06 (Iteration 18) — Search sync + scheduled countdown
+- Fixed: the top-menu global search (⌘K) navigating to a contact now updates the Contacts page live via the ?q= URL param (Contacts syncs its search box to the URL). The Contacts page's own search box was already fine and is unchanged.
+- Added: Campaigns list shows a live countdown badge ("Sends in Xd Yh Zm") + scheduled date on any campaign with status 'scheduled' (ScheduledCountdown, ticks every second). Verified via testing agent (12/12).
+
+## Changelog — 2026-06 (Iteration 17) — Send test, import tags/overwrite, timezone, campaign thumbnails
+- Send modal: "Send test to myself" button (POST /campaigns/{id}/test via SMTP); tag/category targeting retained.
+- Contacts CSV import: pick categories to assign + two-step analyze→overwrite/skip prompt (POST /contacts/import mode=analyze|import, category_ids, overwrite). Result: "X added, Y updated, Z skipped".
+- Timezone selector under Email/SMTP (PUT /company/timezone; GET /company/smtp returns timezone). Scheduling uses workspace timezone.
+- Campaigns list: letter avatar replaced by a live iframe thumbnail of the newsletter HTML.
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.
