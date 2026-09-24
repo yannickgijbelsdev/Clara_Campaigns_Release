@@ -131,6 +131,11 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Timezone selector under Email/SMTP (PUT /company/timezone; GET /company/smtp returns timezone). Scheduling uses workspace timezone.
 - Campaigns list: letter avatar replaced by a live iframe thumbnail of the newsletter HTML.
 
+## Changelog — 2026-06 (Iteration 19) — Public form loader + prod env safety + TinyMCE
+- Fixed: the PUBLIC subscribe form (/subscribe/:apiKey) no longer shows the internal Koodh BearLoader or the 4s loading gate — now a tiny neutral spinner then the form. Verified via testing agent (no bearloader, ~53ms render, invalid key → Form unavailable).
+- Prod stability: hardened all `os.environ["BACKEND_URL"]`/`PUBLIC_BASE_URL`/`FRONTEND_URL` accesses (added `_public_base()` + `.get` fallbacks) so /subscribe/settings, /campaigns/{id}/test and sends can't 500 when those env vars are unset (root cause of production "Something went wrong"). Generic API error message switched to English. NOTE: production needs a REDEPLOY, and ideally PUBLIC_BASE_URL set to https://campaigns.koodh.com for correct public/tracking links.
+- Newsletter editor: text block now uses TinyMCE (self-hosted via jsDelivr CDN, GPL license, no API key) for bold/italic/underline, lists, links, colors, alignment. (Implemented + compiles; full functional test still pending.)
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.
