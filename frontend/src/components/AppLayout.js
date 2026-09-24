@@ -271,11 +271,11 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-3">
           <div className="flex items-center gap-2.5 shrink-0">
             <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
-            <div className="hidden sm:block h-5 w-px bg-slate-200/70" />
-            <span className="hidden sm:block font-display font-semibold text-slate-900 text-[15px] whitespace-nowrap">Clara Campaigns</span>
+            <div className="hidden 2xl:block h-5 w-px bg-slate-200/70" />
+            <span className="hidden 2xl:block font-display font-semibold text-slate-900 text-[15px] whitespace-nowrap">Clara Campaigns</span>
             <BrandMenu />
           </div>
-          <div className="hidden xl:flex items-center gap-1.5 mr-1">
+          <div className="hidden 2xl:flex items-center gap-1.5 mr-1">
             <button onClick={() => navigate("/plans")} className="relative group" data-testid="plan-chip">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 clara-trans hover:bg-amber-100">
                 <Gem className="h-[17px] w-[17px]" />
