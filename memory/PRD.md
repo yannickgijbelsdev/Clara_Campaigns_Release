@@ -169,3 +169,8 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - New workspace setting collect_categories (default true). SubscribeSettingsInput + PUT /subscribe/settings handle it; _subscribe_out returns it; GET /public/form/{key} returns collect_categories and an EMPTY categories list when off.
 - ApiAccess.js: new "Show categories on the form" toggle (data-testid=collect-categories-toggle) + included in save payload. SubscribePage.js hides the category section when collect_categories===false.
 - Verified: toggling off → public form shows no category checkboxes/heading; toggling on → categories return. NOTE: backend change — production needs a REDEPLOY.
+
+## Changelog — 2026-06 (Iteration 25) — Social media buttons block
+- New Builder block type "social": brand-colored circular social buttons. emailHtml.js exports SOCIAL_PLATFORMS (facebook/instagram/x/linkedin/youtube/tiktok/whatsapp) + SOCIAL_ICON_BASE (Icons8 white PNGs, email-safe); renderBlock "social" outputs circular <a> (bg = brand color) with white icon img; BLOCK_DEFAULTS.social (facebook+instagram enabled by default).
+- Builder: "Social" palette entry (Share2 icon); brandDefaults sets circle bg = branding.brand_primary and deep-copies items; PropsEditor "social" case = icon color picker, circle size, alignment, and a checkbox per network (data-testid social-toggle-{key}) with a URL field (social-url-{key}) shown when enabled. upsertSocialItem() normalizes the items array in canonical order.
+- Verified in Builder: adding block renders circles in canvas, toggling networks + entering links works, icons load. Client-only feature (no backend change) — blocks are saved as campaign JSON and rendered at send time via existing generateHtml path.

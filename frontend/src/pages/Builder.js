@@ -2,13 +2,13 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail, API } from "@/lib/api";
-import { generateHtml, BLOCK_DEFAULTS, renderBlock, footerHtml } from "@/lib/emailHtml";
+import { generateHtml, BLOCK_DEFAULTS, renderBlock, footerHtml, SOCIAL_PLATFORMS } from "@/lib/emailHtml";
 import { companyLogoUrl } from "@/pages/Branding";
 import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { Editor as TinyEditor } from "@tinymce/tinymce-react";
 import { toast } from "sonner";
 import {
-  Type, AlignLeft, Image as ImageIcon, MousePointer, Minus, Space, Images,
+  Type, AlignLeft, Image as ImageIcon, MousePointer, Minus, Space, Images, Share2,
   Save, Send, Code2, Eye, Trash2, ArrowUp, ArrowDown, Loader2, X, Link2, Check, AlertTriangle, User, Upload,
 } from "lucide-react";
 
@@ -25,6 +25,7 @@ const PALETTE = [
   { type: "text", label: "Text block", icon: AlignLeft },
   { type: "image", label: "Image", icon: ImageIcon },
   { type: "button", label: "Button", icon: MousePointer },
+  { type: "social", label: "Social", icon: Share2 },
   { type: "divider", label: "Divider", icon: Minus },
   { type: "spacer", label: "Spacer", icon: Space },
 ];
@@ -57,6 +58,7 @@ export default function Builder() {
   // Pre-apply company branding to block defaults (user can still change it).
   const brandDefaults = (type) => {
     const d = { ...BLOCK_DEFAULTS[type] };
+    if (type === "social") d.items = (BLOCK_DEFAULTS.social.items || []).map((i) => ({ ...i }));
     if (!branding) return d;
     if (type === "logo") {
       const l = companyLogoUrl(branding);
@@ -64,6 +66,7 @@ export default function Builder() {
       if (branding.website) d.link = branding.website;
     }
     if (type === "button" && branding.brand_primary) d.bg = branding.brand_primary;
+    if (type === "social" && branding.brand_primary) d.bg = branding.brand_primary;
     if (type === "title" && branding.brand_accent) d.color = branding.brand_accent;
     return d;
   };
@@ -395,6 +398,12 @@ function ImageUploader({ testid, onUploaded }) {
     </div>
   );
 }
+const upsertSocialItem = (items, key, patch) =>
+  SOCIAL_PLATFORMS.map((pl) => {
+    const found = (items || []).find((i) => i.key === pl.key) || { key: pl.key, enabled: false, url: "" };
+    return pl.key === key ? { ...found, ...patch } : found;
+  });
+
 function AlignPicker({ value, onChange }) {
   return (
     <div className="flex gap-1 mb-3">
@@ -461,6 +470,34 @@ function PropsEditor({ block, update }) {
       return (<><L>Color</L><input type="color" value={p.color} onChange={(e) => update("color", e.target.value)} className="w-full h-9 rounded-lg border border-slate-200" /></>);
     case "spacer":
       return (<><L>Height (px)</L><Inp type="number" value={p.height} onChange={(v) => update("height", Number(v))} /></>);
+    case "social":
+      return (<>
+        <L>Icon color (circle)</L>
+        <input type="color" value={p.bg || "#7380b6"} onChange={(e) => update("bg", e.target.value)} className="w-full h-9 rounded-lg border border-slate-200 mb-3" />
+        <L>Circle size (px)</L><Inp type="number" value={p.size} onChange={(v) => update("size", Number(v))} />
+        <L>Alignment</L><AlignPicker value={p.align} onChange={(v) => update("align", v)} />
+        <L>Networks to show</L>
+        <div className="space-y-2">
+          {SOCIAL_PLATFORMS.map((plat) => {
+            const item = (p.items || []).find((i) => i.key === plat.key) || { key: plat.key, enabled: false, url: "" };
+            return (
+              <div key={plat.key} className="border border-slate-200 rounded-lg p-2.5">
+                <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input type="checkbox" data-testid={`social-toggle-${plat.key}`} checked={!!item.enabled}
+                    onChange={(e) => update("items", upsertSocialItem(p.items, plat.key, { enabled: e.target.checked }))}
+                    className="h-4 w-4 accent-[#7380b6]" />
+                  {plat.label}
+                </label>
+                {item.enabled && (
+                  <input data-testid={`social-url-${plat.key}`} value={item.url || ""} placeholder="https://…"
+                    onChange={(e) => update("items", upsertSocialItem(p.items, plat.key, { url: e.target.value }))}
+                    className="mt-2 w-full text-sm border border-slate-200 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-[#7380b6]" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </>);
     default:
       return null;
   }

@@ -1,5 +1,16 @@
 // Generates email-safe HTML from newsletter blocks (table-based, inline styles).
 
+export const SOCIAL_ICON_BASE = "https://img.icons8.com/ios-filled/100/FFFFFF/";
+export const SOCIAL_PLATFORMS = [
+  { key: "facebook", label: "Facebook", icon: "facebook" },
+  { key: "instagram", label: "Instagram", icon: "instagram-new" },
+  { key: "x", label: "X (Twitter)", icon: "twitterx" },
+  { key: "linkedin", label: "LinkedIn", icon: "linkedin" },
+  { key: "youtube", label: "YouTube", icon: "youtube-play" },
+  { key: "tiktok", label: "TikTok", icon: "tiktok" },
+  { key: "whatsapp", label: "WhatsApp", icon: "whatsapp" },
+];
+
 export function renderBlock(b) {
   const p = b.props || {};
   const pad = "padding:8px 24px;";
@@ -49,6 +60,22 @@ export function renderBlock(b) {
       return `<tr><td style="${pad}"><div style="border-top:1px solid ${p.color || "#E2E8F0"};margin:6px 0;"></div></td></tr>`;
     case "spacer":
       return `<tr><td style="height:${p.height || 24}px;line-height:${p.height || 24}px;">&nbsp;</td></tr>`;
+    case "social": {
+      const align = p.align || "center";
+      const bg = p.bg || "#7380b6";
+      const size = p.size || 40;
+      const icon = Math.round(size * 0.5);
+      const top = Math.round((size - icon) / 2);
+      const items = (p.items || []).filter((i) => i.enabled);
+      if (!items.length) return "";
+      const cells = items.map((i) => {
+        const meta = SOCIAL_PLATFORMS.find((s) => s.key === i.key);
+        if (!meta) return "";
+        const href = (i.url || "").trim() || "#";
+        return `<a href="${href}" target="_blank" style="display:inline-block;width:${size}px;height:${size}px;background:${bg};border-radius:9999px;text-align:center;margin:0 5px;text-decoration:none;"><img src="${SOCIAL_ICON_BASE}${meta.icon}.png" alt="${meta.label}" width="${icon}" height="${icon}" style="width:${icon}px;height:${icon}px;border:0;display:inline-block;margin-top:${top}px;" /></a>`;
+      }).join("");
+      return `<tr><td style="padding:16px 24px;text-align:${align};">${cells}</td></tr>`;
+    }
     default:
       return "";
   }
@@ -114,4 +141,18 @@ export const BLOCK_DEFAULTS = {
   button: { text: "Read more", link: "https://", bg: "#7380b6", color: "#ffffff", radius: 8, align: "center" },
   divider: { color: "#E2E8F0" },
   spacer: { height: 24 },
+  social: {
+    align: "center",
+    size: 40,
+    bg: "#7380b6",
+    items: [
+      { key: "facebook", enabled: true, url: "" },
+      { key: "instagram", enabled: true, url: "" },
+      { key: "x", enabled: false, url: "" },
+      { key: "linkedin", enabled: false, url: "" },
+      { key: "youtube", enabled: false, url: "" },
+      { key: "tiktok", enabled: false, url: "" },
+      { key: "whatsapp", enabled: false, url: "" },
+    ],
+  },
 };
