@@ -346,7 +346,7 @@ function RichTextEditor({ blockId, value, onChange }) {
           promotion: false,
           plugins: "lists link autolink",
           toolbar: "bold italic underline | forecolor | alignleft aligncenter alignright | bullist numlist | link | removeformat",
-          content_style: "body{font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7;color:#334155;margin:0}p{margin:0 0 16px}",
+          content_style: "body{font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7;color:#334155;margin:0;outline:none!important}body:focus,body:focus-visible,*:focus,*:focus-visible{outline:none!important}p{margin:0 0 16px}",
         }}
       />
     </div>

@@ -182,3 +182,9 @@ h1, h2, h3, h4, .font-display {
 .driver-popover.clara-tour .driver-popover-footer .driver-popover-next-btn:hover { background: #545f8f; }
 .driver-popover.clara-tour .driver-popover-close-btn { color: #94A3B8; font-size: 20px; }
 .driver-popover.clara-tour .driver-popover-arrow { border-color: #ffffff; }
+
+/* TinyMCE: remove focus framing/outline */
+.tox.tox-tinymce { border: 1px solid #e2e8f0 !important; border-radius: 12px !important; overflow: hidden; }
+.tox.tox-tinymce.tox-tinymce--focus { border-color: #7380b6 !important; box-shadow: none !important; }
+.tox .tox-edit-area::before { border: none !important; box-shadow: none !important; }
+.tox:not(.tox-tinymce-inline) .tox-editor-header { box-shadow: none !important; }
