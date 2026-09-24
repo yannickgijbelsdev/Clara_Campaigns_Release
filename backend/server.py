@@ -75,7 +75,7 @@ async def send_quota(user):
                 "remaining": None, "window_days": None}
     limit, days = PLAN_LIMITS[plan]
     since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    used = await db.send_events.count_documents({"user_id": user["id"], "ts": {"$gte": since}})
+    used = await db.send_events.count_documents({"user_id": user["id"], "ts": {"$gte": since}, "send_type": {"$ne": "test"}})
     return {"plan": plan, "active": active, "unlimited": False, "used": used,
             "limit": limit, "remaining": max(0, limit - used), "window_days": days}
 
@@ -1203,13 +1203,17 @@ async def _start_send(campaign, company_id, contact_ids, user, category_ids=None
     contacts = await db.contacts.find(q).to_list(10000)
     if not contacts:
         return {"error": "No recipients selected"}
+    send_type = "contacts" if contact_ids else ("category" if category_ids else "all")
     company = await db.companies.find_one({"_id": oid(company_id)})
     smtp_cfg = _company_smtp_cfg(company)
     real = bool(smtp_cfg)
     await db.deliveries.delete_many({"campaign_id": str(campaign["_id"])})
-    await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {"status": "sending"}})
+    await db.campaigns.update_one({"_id": campaign["_id"]}, {"$set": {
+        "status": "sending", "send_type": send_type, "send_categories": category_ids or []}})
     await db.send_events.insert_one({"user_id": user["id"], "company_id": company_id,
-                                     "campaign_id": str(campaign["_id"]), "ts": now_iso()})
+                                     "campaign_id": str(campaign["_id"]), "send_type": send_type,
+                                     "category_ids": category_ids or [], "recipients": len(contacts),
+                                     "ts": now_iso()})
     asyncio.create_task(_run_send(campaign, contacts, user["id"], company_id, real, smtp_cfg, company))
     return {"ok": True, "recipients": len(contacts), "mode": "smtp" if real else "simulation"}
 
@@ -1262,6 +1266,9 @@ async def send_test_campaign(campaign_id: str, s=Depends(scope)):
         await email_util.send_newsletter_via_smtp(cfg=cfg, subject=subject, html=html, to_email=to, to_name=name or None)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Test send failed: {str(exc)[:200]}")
+    await db.send_events.insert_one({"user_id": s["user"]["id"], "company_id": s["company_id"],
+                                     "campaign_id": campaign_id, "send_type": "test",
+                                     "category_ids": [], "recipients": 1, "ts": now_iso()})
     return {"ok": True, "sent_to": to}
 
 
@@ -1461,6 +1468,160 @@ async def dashboard(s=Depends(scope)):
         "open_rate": round(opened / sent * 100, 1) if sent else 0,
         "click_rate": round(clicked / sent * 100, 1) if sent else 0,
         "recent_campaigns": recent_out,
+    }
+
+
+def _day(iso):
+    return iso[:10] if iso else None
+
+
+@api.get("/analytics")
+async def analytics(s=Depends(scope),
+                    start: str = Query(None, alias="from"),
+                    end: str = Query(None, alias="to"),
+                    category: str = Query("")):
+    cid = s["company_id"]
+    today = datetime.now(timezone.utc).date()
+    try:
+        end_d = datetime.fromisoformat(end).date() if end else today
+    except Exception:
+        end_d = today
+    try:
+        start_d = datetime.fromisoformat(start).date() if start else (end_d - timedelta(days=29))
+    except Exception:
+        start_d = end_d - timedelta(days=29)
+    if start_d > end_d:
+        start_d, end_d = end_d, start_d
+    span = (end_d - start_d).days
+    if span > 366:
+        start_d = end_d - timedelta(days=366)
+        span = 366
+    days = [(start_d + timedelta(days=i)).isoformat() for i in range(span + 1)]
+    s_start, s_end = start_d.isoformat(), end_d.isoformat()
+    in_range = lambda dk: dk is not None and s_start <= dk <= s_end
+
+    cat_contact_ids = None
+    if category:
+        cts = await db.contacts.find({"company_id": cid, "categories": category}, {"_id": 1}).to_list(100000)
+        cat_contact_ids = {str(c["_id"]) for c in cts}
+
+    camps = await db.campaigns.find({"company_id": cid}).to_list(5000)
+    camp_map = {str(c["_id"]): {"name": c.get("name") or "Untitled", "send_type": c.get("send_type", "other")} for c in camps}
+
+    deliveries = await db.deliveries.find({"company_id": cid}).to_list(100000)
+    if cat_contact_ids is not None:
+        deliveries = [d for d in deliveries if d.get("contact_id") in cat_contact_ids]
+
+    day_sent = {d: 0 for d in days}
+    day_open = {d: 0 for d in days}
+    day_click = {d: 0 for d in days}
+    camp_totals = {}
+    daycamp = {d: {} for d in days}
+    failed = 0
+
+    def _bump(store, key, field):
+        store.setdefault(key, {"sent": 0, "opened": 0, "clicked": 0})[field] += 1
+
+    for d in deliveries:
+        sd, od, cld = _day(d.get("sent_at")), _day(d.get("last_open")), _day(d.get("last_click"))
+        camp = d.get("campaign_id")
+        if d.get("status") == "sent" and in_range(sd):
+            day_sent[sd] += 1
+            _bump(camp_totals, camp, "sent")
+            _bump(daycamp[sd], camp, "sent")
+        if d.get("status") == "failed" and in_range(_day(d.get("created_at"))):
+            failed += 1
+        if d.get("opened") and in_range(od):
+            day_open[od] += 1
+            _bump(camp_totals, camp, "opened")
+            _bump(daycamp[od], camp, "opened")
+        if d.get("clicked") and in_range(cld):
+            day_click[cld] += 1
+            _bump(camp_totals, camp, "clicked")
+            _bump(daycamp[cld], camp, "clicked")
+
+    total_sent = sum(day_sent.values())
+    total_open = sum(day_open.values())
+    total_click = sum(day_click.values())
+
+    events = await db.send_events.find({"company_id": cid}).to_list(100000)
+    send_types = {"all": 0, "category": 0, "contacts": 0, "test": 0, "other": 0}
+    day_tests = {d: 0 for d in days}
+    day_campaigns = {d: set() for d in days}
+    for e in events:
+        ed = _day(e.get("ts"))
+        if not in_range(ed):
+            continue
+        st = e.get("send_type", "other")
+        if category and st != "test" and category not in (e.get("category_ids") or []):
+            continue
+        if st not in send_types:
+            st = "other"
+        send_types[st] += 1
+        if st == "test":
+            day_tests[ed] += 1
+        elif e.get("campaign_id"):
+            day_campaigns[ed].add(e.get("campaign_id"))
+
+    campaigns_sent = sum(len(v) for v in day_campaigns.values())
+
+    growth_added = {d: 0 for d in days}
+    growth_unsub = {d: 0 for d in days}
+    contacts_all = await db.contacts.find({"company_id": cid}).to_list(200000)
+    for c in contacts_all:
+        if cat_contact_ids is not None and str(c["_id"]) not in cat_contact_ids:
+            continue
+        cd = _day(c.get("created_at"))
+        if in_range(cd):
+            growth_added[cd] += 1
+        ud = _day(c.get("unsubscribed_at"))
+        if c.get("status") == "unsubscribed" and in_range(ud):
+            growth_unsub[ud] += 1
+
+    timeseries = [{"date": d, "sent": day_sent[d], "opened": day_open[d], "clicked": day_click[d]} for d in days]
+    growth = [{"date": d, "added": growth_added[d], "unsubscribed": growth_unsub[d],
+               "net": growth_added[d] - growth_unsub[d]} for d in days]
+
+    per_campaign = []
+    for cid_, tot in camp_totals.items():
+        meta = camp_map.get(cid_, {"name": "Deleted campaign", "send_type": "other"})
+        per_campaign.append({
+            "id": cid_, "name": meta["name"], "send_type": meta["send_type"],
+            "sent": tot["sent"], "opened": tot["opened"], "clicked": tot["clicked"],
+            "open_rate": round(tot["opened"] / tot["sent"] * 100, 1) if tot["sent"] else 0,
+            "click_rate": round(tot["clicked"] / tot["sent"] * 100, 1) if tot["sent"] else 0,
+        })
+    per_campaign.sort(key=lambda x: x["sent"], reverse=True)
+
+    by_day = {}
+    for d in days:
+        camps_today = []
+        for cid_, tot in daycamp[d].items():
+            meta = camp_map.get(cid_, {"name": "Deleted campaign", "send_type": "other"})
+            camps_today.append({"id": cid_, "name": meta["name"], "send_type": meta["send_type"], **tot})
+        camps_today.sort(key=lambda x: x["sent"], reverse=True)
+        by_day[d] = {"sent": day_sent[d], "opened": day_open[d], "clicked": day_click[d],
+                     "tests": day_tests[d], "campaigns": camps_today}
+
+    return {
+        "range": {"from": s_start, "to": s_end},
+        "totals": {
+            "campaigns_sent": campaigns_sent,
+            "emails_sent": total_sent,
+            "opened": total_open,
+            "clicked": total_click,
+            "failed": failed,
+            "test_sends": send_types["test"],
+            "open_rate": round(total_open / total_sent * 100, 1) if total_sent else 0,
+            "click_rate": round(total_click / total_sent * 100, 1) if total_sent else 0,
+            "subscribers_added": sum(growth_added.values()),
+            "unsubscribed": sum(growth_unsub.values()),
+        },
+        "timeseries": timeseries,
+        "send_types": send_types,
+        "subscriber_growth": growth,
+        "per_campaign": per_campaign,
+        "by_day": by_day,
     }
 
 

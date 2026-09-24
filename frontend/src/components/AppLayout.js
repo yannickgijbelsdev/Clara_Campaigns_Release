@@ -68,7 +68,7 @@ function WorkspaceSwitcher() {
         steps={["Loading campaigns", "Loading contacts", "Refreshing dashboard"]}
         stepMs={500} onComplete={() => window.location.reload()} />
       <button data-testid="workspace-switcher" onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 pl-2.5 pr-2.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors max-w-[220px]">
+        className="flex items-center gap-2 pl-2.5 pr-2.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors max-w-[130px] sm:max-w-[220px]">
         <Globe className="h-4 w-4 text-slate-400 shrink-0" />
         <span className="text-sm font-medium text-slate-800 truncate">{current?.name || "Workspace"}</span>
         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -271,7 +271,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
       {user && user.role !== "admin" && user.onboarded !== true && <Onboarding />}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <header className="sticky top-0 z-30 bg-[#F5F6F8]/90 backdrop-blur-xl">
-        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center gap-3">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
           <div className="flex items-center gap-2.5 shrink-0">
             <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
             <div className="hidden 2xl:block h-5 w-px bg-slate-200/70" />

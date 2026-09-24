@@ -5,6 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Plus, Users, Send, Mail, Search } from "lucide-react";
+import AnalyticsPanel from "@/components/AnalyticsPanel";
 
 const DOT = { sent: "bg-emerald-500", draft: "bg-slate-400", sending: "bg-amber-500", scheduled: "bg-sky-500", failed: "bg-rose-500" };
 const TAGBG = {
@@ -55,6 +56,11 @@ export default function Dashboard() {
           <span className="h-5 w-px bg-slate-200" />
           <span className="flex items-center gap-2 text-slate-500"><Send className="h-4 w-4 text-slate-400" /> Sent <b className="text-slate-900 text-base">{data?.total_sent ?? 0}</b></span>
         </motion.div>
+      </div>
+
+      {/* Comprehensive workspace analytics */}
+      <div className="mb-10">
+        <AnalyticsPanel />
       </div>
 
       {/* Central workspace card */}
