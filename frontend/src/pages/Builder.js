@@ -5,6 +5,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { generateHtml, BLOCK_DEFAULTS, renderBlock } from "@/lib/emailHtml";
 import { companyLogoUrl } from "@/pages/Branding";
 import { ProgressOverlay } from "@/components/ProgressOverlay";
+import { Editor as TinyEditor } from "@tinymce/tinymce-react";
 import { toast } from "sonner";
 import {
   Type, AlignLeft, Image as ImageIcon, MousePointer, Minus, Space, Images,
@@ -325,6 +326,33 @@ function Inp({ testid, value, onChange, placeholder, type = "text" }) {
     onChange={(e) => onChange(e.target.value)}
     className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none" />;
 }
+const TINY_SRC = "https://cdn.jsdelivr.net/npm/tinymce@8.9.2/tinymce.min.js";
+function RichTextEditor({ blockId, value, onChange }) {
+  return (
+    <div className="mb-3" data-testid="rich-text-editor">
+      <TinyEditor
+        key={blockId}
+        tinymceScriptSrc={TINY_SRC}
+        licenseKey="gpl"
+        value={value}
+        onEditorChange={(html) => onChange(html)}
+        init={{
+          base_url: "https://cdn.jsdelivr.net/npm/tinymce@8.9.2",
+          suffix: ".min",
+          height: 240,
+          menubar: false,
+          statusbar: false,
+          branding: false,
+          promotion: false,
+          plugins: "lists link autolink",
+          toolbar: "bold italic underline | forecolor | alignleft aligncenter alignright | bullist numlist | link | removeformat",
+          content_style: "body{font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7;color:#334155}",
+        }}
+      />
+    </div>
+  );
+}
+
 function ImageUploader({ testid, onUploaded }) {
   const ref = useRef();
   const [busy, setBusy] = useState(false);
@@ -388,8 +416,7 @@ function PropsEditor({ block, update }) {
     case "text":
       return (<>
         <L>Text</L>
-        <textarea data-testid="prop-text" value={p.text} onChange={(e) => update("text", e.target.value)}
-          className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 mb-3 min-h-[120px] focus:ring-2 focus:ring-rose-500 outline-none" />
+        <RichTextEditor blockId={block.id} value={p.text || ""} onChange={(v) => update("text", v)} />
         <TagInserter onInsert={(tok) => update("text", (p.text || "") + tok)} />
         <L>Alignment</L><AlignPicker value={p.align} onChange={(v) => update("align", v)} />
         <L>Color</L><input type="color" value={p.color} onChange={(e) => update("color", e.target.value)} className="w-full h-9 rounded-lg border border-slate-200" />
@@ -443,16 +470,27 @@ function PreviewModal({ html, onClose }) {
   );
 }
 
+// Offset (minutes east of UTC) of `tz` at the given UTC instant — browser-tz independent.
+function tzOffsetMinutes(tz, date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hour12: false, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(date).reduce((a, p) => { a[p.type] = p.value; return a; }, {});
+  const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return (asUtc - date.getTime()) / 60000;
+}
 // Convert a wall-clock "YYYY-MM-DDTHH:mm" (intended in tz) to a UTC ISO string.
 function wallClockToUtcIso(wall, tz) {
   if (!tz || tz === "UTC") return new Date(wall + ":00Z").toISOString();
   const [d, t] = wall.split("T");
   const [y, mo, da] = d.split("-").map(Number);
   const [h, mi] = t.split(":").map(Number);
-  const guess = Date.UTC(y, mo - 1, da, h, mi);
-  const asTz = new Date(new Date(guess).toLocaleString("en-US", { timeZone: tz }));
-  const offset = asTz.getTime() - guess;
-  return new Date(guess - offset).toISOString();
+  const guessUtc = Date.UTC(y, mo - 1, da, h, mi);
+  const off = tzOffsetMinutes(tz, new Date(guessUtc));
+  let utc = guessUtc - off * 60000;
+  const off2 = tzOffsetMinutes(tz, new Date(utc));
+  if (off2 !== off) utc = guessUtc - off2 * 60000;
+  return new Date(utc).toISOString();
 }
 function formatInTz(iso, tz) {
   try {

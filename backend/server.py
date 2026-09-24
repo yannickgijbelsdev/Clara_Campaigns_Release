@@ -508,9 +508,13 @@ def _form_labels(company):
     }
 
 
+def _public_base():
+    return os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BACKEND_URL") or ""
+
+
 def _subscribe_out(company):
     api_key = company.get("api_key")
-    public_base = os.environ.get("PUBLIC_BASE_URL") or os.environ["BACKEND_URL"]
+    public_base = _public_base()
     public_url = f"{public_base}/subscribe/{api_key}" if api_key else None
     embed = (f'<a href="{public_url}" target="_blank" rel="noopener" '
              f'style="display:inline-block;padding:12px 22px;background:{company.get("brand_primary") or "#7380b6"};'
@@ -1098,7 +1102,7 @@ async def delete_campaign(campaign_id: str, s=Depends(scope)):
 
 
 async def _run_send(campaign, contacts, user_id, company_id, real, smtp_cfg, company=None):
-    backend = os.environ["BACKEND_URL"]
+    backend = os.environ.get("BACKEND_URL", "")
     public_base = os.environ.get("PUBLIC_BASE_URL") or backend
     cid = str(campaign["_id"])
     for ct in contacts:
@@ -1211,7 +1215,7 @@ async def send_test_campaign(campaign_id: str, s=Depends(scope)):
     to = s["user"].get("email")
     if not to:
         raise HTTPException(status_code=400, detail="Your account has no email address.")
-    public_base = os.environ.get("PUBLIC_BASE_URL") or os.environ["BACKEND_URL"]
+    public_base = _public_base()
     track_id = uuid.uuid4().hex
     name = s["user"].get("name") or ""
     sample = {"first_name": name.split(" ")[0] if name else "", "last_name": "", "email": to}
@@ -1313,7 +1317,7 @@ async def track_click(track_id: str, u: str = Query("")):
         await db.deliveries.update_one({"track_id": track_id},
             {"$set": {"clicked": True, "opened": True, "last_click": now_iso()},
              "$inc": {"click_count": 1}, "$addToSet": {"clicked_links": u}})
-    return RedirectResponse(u or os.environ["FRONTEND_URL"])
+    return RedirectResponse(u or os.environ.get("FRONTEND_URL") or _public_base() or "/")
 
 
 @api.get("/unsubscribe/{token}")

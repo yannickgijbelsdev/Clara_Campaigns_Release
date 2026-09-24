@@ -22,7 +22,9 @@ export function renderBlock(b) {
     case "text": {
       const align = p.align || "left";
       const color = p.color || "#334155";
-      return `<tr><td style="padding:8px 24px;"><div style="font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7;color:${color};text-align:${align};">${(p.text || "Enter your text here.").replace(/\n/g, "<br/>")}</div></td></tr>`;
+      const raw = p.text || "Enter your text here.";
+      const body = /<[a-z][\s\S]*>/i.test(raw) ? raw : raw.replace(/\n/g, "<br/>");
+      return `<tr><td style="padding:8px 24px;"><div style="font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7;color:${color};text-align:${align};">${body}</div></td></tr>`;
     }
     case "image": {
       const w = p.width || 552;

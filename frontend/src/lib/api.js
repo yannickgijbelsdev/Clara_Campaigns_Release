@@ -42,7 +42,7 @@ api.interceptors.response.use(
 );
 
 export function formatApiErrorDetail(detail) {
-  if (detail == null) return "Er ging iets mis. Probeer het opnieuw.";
+  if (detail == null) return "Something went wrong. Please try again.";
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail))
     return detail.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
