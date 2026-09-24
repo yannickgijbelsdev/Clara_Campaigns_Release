@@ -36,6 +36,10 @@ export default function Contacts() {
     }).catch(() => {});
   }, []);
 
+  // Keep the search box in sync with the ?q= URL param (e.g. from global search).
+  const urlQ = searchParams.get("q") || "";
+  useEffect(() => { setQ(urlQ); }, [urlQ]);
+
   const SOURCE_LABEL = { imported: "Imported", subscribe_form: "Form", manual: "Manual" };
   const contactTags = (c) => {
     const out = [];

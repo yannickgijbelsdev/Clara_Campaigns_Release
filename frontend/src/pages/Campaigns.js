@@ -4,8 +4,36 @@ import { motion } from "framer-motion";
 import AppLayout, { PrimaryButton } from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { BarChart3, Pencil, Trash2, Plus, Mail } from "lucide-react";
+import { BarChart3, Pencil, Trash2, Plus, Mail, Clock } from "lucide-react";
 import { toast } from "sonner";
+
+function ScheduledCountdown({ at }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const target = new Date(at).getTime();
+  if (!at || isNaN(target)) return null;
+  const diff = target - now;
+  let label;
+  if (diff <= 0) {
+    label = "Sending soon…";
+  } else {
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    const parts = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
+    label = `Sends in ${parts}`;
+  }
+  return (
+    <span data-testid="schedule-countdown"
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-0.5">
+      <Clock className="h-3 w-3" /> {label}
+    </span>
+  );
+}
 
 const STATUS = {
   sent: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -76,11 +104,18 @@ export default function Campaigns() {
                   <span className={`text-xs px-2.5 py-0.5 rounded-full border capitalize ${STATUS[c.status] || STATUS.draft}`}>{c.status}</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-0.5 truncate">{c.subject || "No subject"}</p>
-                <div className="flex gap-4 mt-1.5 text-xs text-slate-400">
-                  <span>{c.stats?.sent || 0} sent</span>
-                  <span>{c.stats?.opened || 0} opened</span>
-                  <span>{c.stats?.clicked || 0} clicked</span>
-                </div>
+                {c.status === "scheduled" ? (
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <ScheduledCountdown at={c.scheduled_at} />
+                    {c.scheduled_at && <span className="text-xs text-slate-400">{new Date(c.scheduled_at).toLocaleString()}</span>}
+                  </div>
+                ) : (
+                  <div className="flex gap-4 mt-1.5 text-xs text-slate-400">
+                    <span>{c.stats?.sent || 0} sent</span>
+                    <span>{c.stats?.opened || 0} opened</span>
+                    <span>{c.stats?.clicked || 0} clicked</span>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button data-testid={`analytics-${c.id}`} onClick={() => navigate(`/campaigns/${c.id}/analytics`)}
