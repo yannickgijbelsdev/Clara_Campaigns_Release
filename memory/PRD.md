@@ -151,3 +151,8 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Merge-tag fallback: tokens now support {{first_name|there}} syntax — when the contact's value is empty the fallback text is used instead (server.py _apply_merge_tags, regex captures optional |fallback; values HTML-escaped).
 - Builder: the "Personalize" panel has a "Fallback when empty" input; chips insert {{key|fallback}} when a fallback is typed, otherwise {{key}}.
 - Send warning now only appears when a name tag is used WITHOUT a fallback and some recipients lack the name; a fallback suppresses the notice. Verified via UI.
+
+## Changelog — 2026-06 (Iteration 21) — TinyMCE focus frame + header horizontal scroll + email footer alignment
+- TinyMCE: removed the annoying focus framing/outline. Inner iframe body outline:none (Builder.js content_style); outer container `.tox-edit-area::before` accent border removed and focus border set to subtle #7380b6 (index.css).
+- Fixed page-level horizontal scroll (zijwaartse scroll) that appeared at ~1280–1440px: the top header (AppLayout.js) pushed the right group ~150px out of view. Brand name "Clara Campaigns" text + gem/lock decorative chips now defer to the `2xl` breakpoint so the full nav fits with no overflow. Verified scrollWidth===clientWidth at 1281/1366/1440/1500/1536/1920.
+- Email footer alignment: logo changed from display:inline-block → display:block (margin:0 auto 18px) in email_util.personalize_html, so footer now stacks centered: logo → website → "Sent with Clara Campaigns" → Unsubscribe. Verified by rendering footer HTML in browser.
