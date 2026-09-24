@@ -85,7 +85,7 @@ export default function SubscribePage() {
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
                     className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-rose-500" />
                 )}
-                {cfg.categories.length > 0 && (
+                {cfg.collect_categories !== false && cfg.categories.length > 0 && (
                   <div className="pt-1">
                     <div className="text-xs font-medium text-slate-600 mb-2">{cfg.label_categories || "What would you like to receive?"}</div>
                     <div className="space-y-2">

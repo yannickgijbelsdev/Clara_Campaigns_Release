@@ -94,6 +94,7 @@ class SubscribeSettingsInput(BaseModel):
     form_intro: Optional[str] = None
     form_thankyou: Optional[str] = None
     collect_city: Optional[bool] = None
+    collect_categories: Optional[bool] = None
     active: Optional[bool] = None
     label_first_name: Optional[str] = None
     label_last_name: Optional[str] = None

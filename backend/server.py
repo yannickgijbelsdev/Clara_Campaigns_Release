@@ -528,6 +528,7 @@ def _subscribe_out(company):
         "form_intro": company.get("form_intro") or "Stay in the loop — sign up to receive our latest news and updates.",
         "form_thankyou": company.get("form_thankyou") or "Thanks for subscribing! Please check your inbox.",
         "collect_city": company.get("collect_city", True),
+        "collect_categories": company.get("collect_categories", True),
         "active": company.get("subscribe_active", True),
         "connected": bool(company.get("api_connected")),
         "last_used_at": company.get("api_last_used"),
@@ -561,6 +562,8 @@ async def update_subscribe_settings(data: SubscribeSettingsInput, s=Depends(scop
         upd["form_thankyou"] = data.form_thankyou
     if data.collect_city is not None:
         upd["collect_city"] = data.collect_city
+    if data.collect_categories is not None:
+        upd["collect_categories"] = data.collect_categories
     if data.active is not None:
         upd["subscribe_active"] = data.active
     for f in ("label_first_name", "label_last_name", "label_email", "label_city", "label_categories", "submit_text"):
@@ -592,6 +595,7 @@ async def public_form(api_key: str):
         await db.companies.update_one({"_id": company["_id"]},
                                       {"$set": {"api_connected": True, "api_last_used": now_iso()}})
     cats = await db.categories.find({"company_id": str(company["_id"])}).sort("created_at", 1).to_list(500)
+    show_cats = company.get("collect_categories", True)
     return {
         "company_name": company.get("name"),
         "logo_url": company.get("logo_url"),
@@ -602,7 +606,8 @@ async def public_form(api_key: str):
         "form_intro": company.get("form_intro") or "Stay in the loop — sign up to receive our latest news and updates.",
         "form_thankyou": company.get("form_thankyou") or "Thanks for subscribing! Please check your inbox.",
         "collect_city": company.get("collect_city", True),
-        "categories": [{"id": str(c["_id"]), "name": c.get("name"), "description": c.get("description", "")} for c in cats],
+        "collect_categories": show_cats,
+        "categories": [{"id": str(c["_id"]), "name": c.get("name"), "description": c.get("description", "")} for c in cats] if show_cats else [],
         **_form_labels(company),
     }
 

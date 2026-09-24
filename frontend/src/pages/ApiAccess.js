@@ -94,7 +94,7 @@ export default function ApiAccess() {
     try {
       const { data } = await api.put("/subscribe/settings", {
         website: s.website, form_title: s.form_title, form_intro: s.form_intro,
-        form_thankyou: s.form_thankyou, collect_city: s.collect_city, active: s.active,
+        form_thankyou: s.form_thankyou, collect_city: s.collect_city, collect_categories: s.collect_categories, active: s.active,
         label_first_name: s.label_first_name, label_last_name: s.label_last_name,
         label_email: s.label_email, label_city: s.label_city,
         label_categories: s.label_categories, submit_text: s.submit_text,
@@ -188,6 +188,10 @@ export default function ApiAccess() {
               <label className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
                 <input type="checkbox" data-testid="collect-city-toggle" checked={s.collect_city} onChange={(e) => setS({ ...s, collect_city: e.target.checked })} className="h-4 w-4 accent-rose-600" />
                 Ask for city / municipality
+              </label>
+              <label className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
+                <input type="checkbox" data-testid="collect-categories-toggle" checked={s.collect_categories !== false} onChange={(e) => setS({ ...s, collect_categories: e.target.checked })} className="h-4 w-4 accent-rose-600" />
+                Show categories on the form
               </label>
               <label className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
                 <input type="checkbox" data-testid="form-active-toggle" checked={s.active} onChange={(e) => setS({ ...s, active: e.target.checked })} className="h-4 w-4 accent-rose-600" />
