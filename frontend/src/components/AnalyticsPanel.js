@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import {
   Send, MailOpen, MousePointerClick, UserPlus, UserMinus,
-  FlaskConical, AlertCircle, Percent, Loader2, CalendarDays,
+  FlaskConical, AlertCircle, Percent, Loader2, CalendarDays, Clock,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Calendar } from "@/components/ui/calendar";
@@ -100,6 +100,18 @@ export default function AnalyticsPanel() {
   }, [data]);
 
   const dayDetail = selectedDay ? (data?.by_day?.[selectedDay] || { sent: 0, opened: 0, clicked: 0, tests: 0, campaigns: [] }) : null;
+
+  const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const bestTime = useMemo(() => {
+    const m = data?.open_times?.matrix;
+    if (!m) return { max: 0, best: null };
+    let max = 0, best = null;
+    for (let w = 0; w < 7; w++) for (let h = 0; h < 24; h++) {
+      if (m[w][h] > max) { max = m[w][h]; best = { w, h }; }
+    }
+    return { max, best };
+  }, [data]);
+  const fmtHour = (h) => `${String(h).padStart(2, "0")}:00`;
 
   return (
     <div className="space-y-5" data-testid="analytics-panel">
@@ -286,6 +298,56 @@ export default function AnalyticsPanel() {
               )}
             </Panel>
           </div>
+
+          {/* Best time to send (opens heatmap) */}
+          <Panel testid="chart-besttime" title="Best time to send"
+            action={<span className="text-xs text-slate-400 flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {data.open_times?.timezone || "UTC"}</span>}>
+            {!bestTime.max ? (
+              <div className="text-sm text-slate-400 py-10 text-center">No opens tracked yet — once recipients open your emails, we'll show you the best day &amp; hour to send.</div>
+            ) : (
+              <>
+                <p className="text-sm text-slate-600 mb-4">
+                  Most opens happen on <b className="text-slate-900">{WEEKDAYS[bestTime.best.w]}</b> around{" "}
+                  <b className="text-slate-900">{fmtHour(bestTime.best.h)}</b>. Try scheduling your next campaign then.
+                </p>
+                <div className="overflow-x-auto">
+                  <div className="min-w-[560px]">
+                    {/* hour labels */}
+                    <div className="flex pl-9">
+                      {Array.from({ length: 24 }).map((_, h) => (
+                        <div key={h} className="flex-1 text-center text-[9px] text-slate-400">{h % 3 === 0 ? h : ""}</div>
+                      ))}
+                    </div>
+                    {WEEKDAYS.map((wd, w) => (
+                      <div key={wd} className="flex items-center mt-1">
+                        <div className="w-9 text-[11px] text-slate-500 font-medium shrink-0">{wd}</div>
+                        <div className="flex flex-1 gap-[2px]">
+                          {Array.from({ length: 24 }).map((_, h) => {
+                            const v = data.open_times.matrix[w][h];
+                            const isBest = bestTime.best && bestTime.best.w === w && bestTime.best.h === h;
+                            const alpha = v ? 0.18 + 0.82 * (v / bestTime.max) : 0;
+                            return (
+                              <div key={h} title={`${wd} ${fmtHour(h)} · ${v} opens`}
+                                data-testid={`heat-${w}-${h}`}
+                                className={`flex-1 h-5 rounded-[3px] ${isBest ? "ring-2 ring-amber-400" : ""}`}
+                                style={{ background: v ? `rgba(115,128,182,${alpha})` : "#F1F5F9" }} />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-end gap-2 mt-3 text-[11px] text-slate-400">
+                      <span>Fewer opens</span>
+                      <span className="h-3 w-3 rounded-sm" style={{ background: "rgba(115,128,182,0.2)" }} />
+                      <span className="h-3 w-3 rounded-sm" style={{ background: "rgba(115,128,182,0.55)" }} />
+                      <span className="h-3 w-3 rounded-sm" style={{ background: "rgba(115,128,182,1)" }} />
+                      <span>More opens</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </Panel>
         </>
       )}
     </div>

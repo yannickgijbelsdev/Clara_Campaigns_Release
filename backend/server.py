@@ -18,6 +18,7 @@ import secrets
 import asyncio
 import re
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from bson import ObjectId
 
 from db import db, client
@@ -1508,9 +1509,28 @@ async def analytics(s=Depends(scope),
     camps = await db.campaigns.find({"company_id": cid}).to_list(5000)
     camp_map = {str(c["_id"]): {"name": c.get("name") or "Untitled", "send_type": c.get("send_type", "other")} for c in camps}
 
+    company = await db.companies.find_one({"_id": oid(cid)})
+    tz_name = (company or {}).get("timezone") or "UTC"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz, tz_name = ZoneInfo("UTC"), "UTC"
+
     deliveries = await db.deliveries.find({"company_id": cid}).to_list(100000)
     if cat_contact_ids is not None:
         deliveries = [d for d in deliveries if d.get("contact_id") in cat_contact_ids]
+
+    # Best-send-time: opens aggregated by local weekday (0=Mon) x hour (0-23)
+    open_matrix = [[0] * 24 for _ in range(7)]
+    def _local_wh(iso):
+        try:
+            dt = datetime.fromisoformat(iso)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.astimezone(tz)
+            return dt.weekday(), dt.hour
+        except Exception:
+            return None
 
     day_sent = {d: 0 for d in days}
     day_open = {d: 0 for d in days}
@@ -1539,6 +1559,10 @@ async def analytics(s=Depends(scope),
             day_click[cld] += 1
             _bump(camp_totals, camp, "clicked")
             _bump(daycamp[cld], camp, "clicked")
+        if d.get("opened") and d.get("last_open") and in_range(od):
+            wh = _local_wh(d.get("last_open"))
+            if wh:
+                open_matrix[wh[0]][wh[1]] += 1
 
     total_sent = sum(day_sent.values())
     total_open = sum(day_open.values())
@@ -1622,6 +1646,12 @@ async def analytics(s=Depends(scope),
         "subscriber_growth": growth,
         "per_campaign": per_campaign,
         "by_day": by_day,
+        "open_times": {
+            "timezone": tz_name,
+            "matrix": open_matrix,
+            "by_hour": [sum(open_matrix[w][h] for w in range(7)) for h in range(24)],
+            "by_weekday": [sum(open_matrix[w]) for w in range(7)],
+        },
     }
 
 

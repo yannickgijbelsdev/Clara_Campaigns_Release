@@ -181,3 +181,8 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Frontend: new components/AnalyticsPanel.js mounted on the Dashboard (workspace analytics home). Range presets (7/30/90d), tag filter, 8 KPI cards, line chart (sends/opens/clicks over time), send-type donut, subscriber-growth bars, per-campaign open/click-rate horizontal bars, and an activity heatmap calendar (react-day-picker) where clicking a day shows that day's campaigns + sent/opened/clicked/tests. recharts 3.6.
 - Also fixed pre-existing mobile (390px) header horizontal scroll: header padding px-4 sm:px-6 and WorkspaceSwitcher max-w-[130px] sm:max-w-[220px]. Verified scrollWidth===clientWidth at 390.
 - Verified via curl (real send data: campaigns_sent 8, send_types all/category/other populated) + desktop & mobile screenshots (all 6 panels, day-click detail works). NOTE: backend change — production needs a REDEPLOY.
+
+## Changelog — 2026-06 (Iteration 27) — Best send time heatmap
+- Backend: /api/analytics now returns open_times = {timezone, matrix[7][24], by_hour[24], by_weekday[7]} — opens aggregated by local weekday x hour using the workspace timezone (zoneinfo, falls back to UTC). Respects date range + category filter.
+- Frontend (AnalyticsPanel.js): new "Best time to send" panel — a weekday x hour heatmap (brand-color intensity) with the peak slot ring-highlighted, plus a plain-language recommendation ("Most opens happen on Wed around 12:00"). Horizontally scrolls inside its own container on mobile (no page overflow at 390px). Empty state when no opens tracked yet.
+- Verified with crafted open data (tz Europe/Brussels, peak Wed 12:00) on desktop + mobile. NOTE: backend change — production needs a REDEPLOY.
