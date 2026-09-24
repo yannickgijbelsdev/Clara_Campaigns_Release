@@ -322,6 +322,7 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
 
     company = company or {}
     public_base = public_base or "https://campaigns.koodh.com"
+    brand = (company.get("brand_primary") or "#7380b6").strip() or "#7380b6"
     website = (company.get("website") or "").strip()
     cid = str(company.get("_id")) if company.get("_id") else None
     logo_img = ""
@@ -331,7 +332,7 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
     elif company.get("logo_path") and cid:
         logo_img = (f'<img src="{backend_url}/api/company/{cid}/logo" alt="{_html.escape(company.get("name",""))}" '
                     f'width="120" style="max-width:120px;height:auto;display:block;border:0;margin:0 auto 18px;" />')
-    website_link = (f'<a href="{website}" style="color:#94A3B8;text-decoration:none;">{_html.escape(website)}</a><br/>'
+    website_link = (f'<a href="{website}" style="color:{brand};text-decoration:none;font-weight:600;">{_html.escape(website)}</a><br/>'
                     if website else "")
     unsub_url = unsub_url or f"{backend_url}/api/unsubscribe/{track_id}"
     clara_brand = (
@@ -345,8 +346,8 @@ def personalize_html(html: str, track_id: str, backend_url: str, company: dict =
         '<td align="center" style="padding:22px 24px 16px;font-family:\'Segoe UI\',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">'
         f'{logo_img}{website_link}'
         f'<span style="color:#94A3B8;">Sent with </span>{clara_brand}<br/><br/>'
-        f'<a href="{unsub_url}" style="display:inline-block;padding:9px 22px;border:1px solid #E2E8F0;'
-        f'border-radius:9999px;color:#64748B;text-decoration:none;font-size:12px;font-weight:600;">Unsubscribe</a>'
+        f'<a href="{unsub_url}" style="display:inline-block;padding:9px 22px;border:1px solid {brand};'
+        f'border-radius:9999px;color:{brand};text-decoration:none;font-size:12px;font-weight:600;">Unsubscribe</a>'
         '</td></tr></table>'
     )
     pixel = f'<img src="{backend_url}/api/track/open/{track_id}" width="1" height="1" alt="" style="display:none" />'
