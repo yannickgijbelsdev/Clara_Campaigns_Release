@@ -77,6 +77,35 @@ ${rows}
 </body></html>`;
 }
 
+const CLARA_MARK = "https://koodh-clara.nbg1.your-objectstorage.com/assets/clara-mark.png";
+
+// Mirrors the backend footer injected at send time (email_util.personalize_html),
+// so the Builder can show exactly what recipients see.
+export function footerHtml(branding, opts = {}) {
+  const brand = (branding?.brand_primary || "#7380b6").trim() || "#7380b6";
+  const website = (branding?.website || "").trim();
+  const publicBase = opts.publicBase || "https://campaigns.koodh.com";
+  const logoUrl = opts.logoUrl;
+  const logoImg = logoUrl
+    ? `<img src="${logoUrl}" alt="" width="120" style="max-width:120px;height:auto;display:block;border:0;margin:0 auto 18px;" />`
+    : "";
+  const websiteLink = website
+    ? `<a href="${website}" style="color:${brand};text-decoration:none;font-weight:600;">${escapeText(website)}</a><br/>`
+    : "";
+  const claraBrand =
+    `<a href="${publicBase}" style="text-decoration:none;color:#64748B;display:inline-block;margin:2px 0;">` +
+    `<img src="${CLARA_MARK}" width="16" height="16" alt="Clara Campaigns" style="vertical-align:middle;border:0;display:inline-block;margin-right:6px;width:16px;height:16px;" />` +
+    `<span style="vertical-align:middle;font-weight:700;color:#64748B;">Clara Campaigns</span></a>`;
+  return (
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>` +
+    `<td align="center" style="padding:22px 24px 16px;font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.7;">` +
+    `${logoImg}${websiteLink}` +
+    `<span style="color:#94A3B8;">Sent with </span>${claraBrand}<br/><br/>` +
+    `<a href="#" style="display:inline-block;padding:9px 22px;border:1px solid ${brand};border-radius:9999px;color:${brand};text-decoration:none;font-size:12px;font-weight:600;">Unsubscribe</a>` +
+    `</td></tr></table>`
+  );
+}
+
 export const BLOCK_DEFAULTS = {
   logo: { src: "", alt: "Logo", width: 140, align: "center", link: "" },
   title: { text: "Welcome to our newsletter", level: "h1", align: "left", color: "#0F172A" },

@@ -159,3 +159,8 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 
 ## Changelog — 2026-06 (Iteration 22) — Footer adopts workspace brand color
 - email_util.personalize_html now reads company.brand_primary (fallback #7380b6) and applies it to the footer website link (colored + bold) and the Unsubscribe pill (brand-colored border + text). "Sent with Clara Campaigns" stays neutral grey (product credit). Verified rendering with #7380b6 and #e11d48 workspaces. NOTE: backend change — production needs a REDEPLOY to appear in live emails.
+
+## Changelog — 2026-06 (Iteration 23) — Footer preview in Builder + contact editing + avatar persistence fix
+- Builder footer preview: new emailHtml.footerHtml(branding,{logoUrl}) mirrors the backend send-time footer. Shown below the canvas blocks (data-testid="footer-preview") and injected into the full Preview modal, so users see exactly what recipients get (brand-colored website link + Unsubscribe). Not included in saved/sent HTML (backend still injects at send time — no duplication).
+- Contact editing: added PUT /api/contacts/{contact_id} (ContactUpdateInput: email/first_name/last_name/company/city/tags/category_ids, with duplicate-email guard). Contacts.js: pencil "Edit contact" button per row → modal to edit email, names, company, tag chips (categories) + custom tags. Verified via curl + UI screenshot.
+- Avatar persistence fix: avatarUrl() now points to the backend proxy `${API}/avatar/{id}?v={version}` instead of the raw S3 public URL (which can be blocked/unreliable on prod → avatar reverted to default). Added onError fallback to the koodh default in AppLayout + Settings. Verified: proxy returns 200, avatar renders and persists after reload. NOTE: backend changes — production needs a REDEPLOY.

@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import api, { formatApiErrorDetail } from "@/lib/api";
+import api, { formatApiErrorDetail, API } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import GlobalSearch from "@/components/GlobalSearch";
 import Onboarding from "@/components/Onboarding";
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export const avatarUrl = (u) =>
-  u?.avatar_url ? `${u.avatar_url}?v=${u.avatar_version || 0}` : null;
+  (u?.avatar_url || u?.avatar_path) ? `${API}/avatar/${u.id}?v=${u.avatar_version || 0}` : null;
 
 const BASE_NAV = [
   { to: "/dashboard", label: "Dashboard" },
@@ -163,13 +163,16 @@ function UserMenu() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const Avatar = ({ size = "h-9 w-9" }) => av ? (
-    <img src={av} alt="" className={`${size} rounded-full object-cover shadow-sm`} />
-  ) : (
-    <div className={`${size} rounded-full bg-rose-50 overflow-hidden shadow-sm flex items-end justify-center`}>
-      <img src="/koodh-avatar.png" alt="koodh" className="h-full w-full object-cover object-top scale-110" draggable="false" />
-    </div>
-  );
+  const Avatar = ({ size = "h-9 w-9" }) => {
+    const [broken, setBroken] = useState(false);
+    return (av && !broken) ? (
+      <img src={av} alt="" onError={() => setBroken(true)} className={`${size} rounded-full object-cover shadow-sm`} />
+    ) : (
+      <div className={`${size} rounded-full bg-rose-50 overflow-hidden shadow-sm flex items-end justify-center`}>
+        <img src="/koodh-avatar.png" alt="koodh" className="h-full w-full object-cover object-top scale-110" draggable="false" />
+      </div>
+    );
+  };
 
   return (
     <div className="relative" ref={ref}>

@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
-import api, { formatApiErrorDetail } from "@/lib/api";
-import { generateHtml, BLOCK_DEFAULTS, renderBlock } from "@/lib/emailHtml";
+import api, { formatApiErrorDetail, API } from "@/lib/api";
+import { generateHtml, BLOCK_DEFAULTS, renderBlock, footerHtml } from "@/lib/emailHtml";
 import { companyLogoUrl } from "@/pages/Branding";
 import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { Editor as TinyEditor } from "@tinymce/tinymce-react";
@@ -118,6 +118,9 @@ export default function Builder() {
   }, [meta, blocks, rawHtml, mode]);
 
   const html = useMemo(() => (mode === "html" ? rawHtml : generateHtml(blocks)), [blocks, mode, rawHtml]);
+
+  const footerLogo = companyLogoUrl(branding) || (branding?.has_logo && branding?.id ? `${API}/company/${branding.id}/logo` : null);
+  const footerPreview = useMemo(() => footerHtml(branding, { logoUrl: footerLogo }), [branding, footerLogo]);
 
   const addBlock = (type) => {
     const b = { id: uid(), type, props: { ...brandDefaults(type) } };
@@ -262,10 +265,17 @@ export default function Builder() {
                   ))}
                 </div>
               )}
+              {blocks.length > 0 && (
+                <div className="max-w-[600px] mx-auto mt-4" data-testid="footer-preview"
+                  onClickCapture={(e) => { const a = e.target.closest && e.target.closest("a"); if (a) e.preventDefault(); }}>
+                  <div dangerouslySetInnerHTML={{ __html: footerPreview }} />
+                  <div className="text-center text-[10px] text-slate-400 mt-1.5">
+                    Footer — automatically added to every email you send
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* properties */}
           <div className="col-span-12 lg:col-span-3">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sticky top-24">
               <div className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3">Properties</div>
@@ -279,7 +289,7 @@ export default function Builder() {
         </div>
       )}
 
-      {showPreview && <PreviewModal html={html} onClose={() => setShowPreview(false)} />}
+      {showPreview && <PreviewModal html={html} footer={footerPreview} onClose={() => setShowPreview(false)} />}
       {showSend && campaignId && <SendModal campaignId={campaignId} html={html} onClose={() => setShowSend(false)} onSent={() => navigate(`/campaigns/${campaignId}/analytics`)} />}
       <ProgressOverlay
         open={createProgress}
@@ -456,7 +466,10 @@ function PropsEditor({ block, update }) {
   }
 }
 
-function PreviewModal({ html, onClose }) {
+function PreviewModal({ html, footer, onClose }) {
+  const doc = footer
+    ? (html.includes("</body>") ? html.replace("</body>", footer + "</body>") : html + footer)
+    : html;
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-2xl h-[80vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -464,7 +477,7 @@ function PreviewModal({ html, onClose }) {
           <h3 className="font-display font-semibold">Preview</h3>
           <button data-testid="close-preview" onClick={onClose} className="p-1 hover:bg-slate-100 rounded"><X className="h-5 w-5" /></button>
         </div>
-        <iframe title="full-preview" srcDoc={html} className="flex-1 w-full border-0" />
+        <iframe title="full-preview" srcDoc={doc} className="flex-1 w-full border-0" />
       </div>
     </div>
   );

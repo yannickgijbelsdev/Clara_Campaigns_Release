@@ -29,6 +29,7 @@ function AvatarCard() {
   const { user, refreshUser } = useAuth();
   const fileRef = useRef();
   const [busy, setBusy] = useState(false);
+  const [broken, setBroken] = useState(false);
   const av = avatarUrl(user);
 
   const onFile = async (e) => {
@@ -39,6 +40,7 @@ function AvatarCard() {
     fd.append("file", file);
     try {
       await api.post("/auth/avatar", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setBroken(false);
       await refreshUser();
       toast.success("Profile photo updated");
     } catch (err) {
@@ -52,8 +54,8 @@ function AvatarCard() {
     <Card icon={Camera} tint="bg-rose-50 text-rose-600" title="Profile photo">
       <div className="flex items-center gap-5">
         <div className="relative">
-          {av
-            ? <img src={av} alt="" className="h-20 w-20 rounded-2xl object-cover clara-soft" />
+          {av && !broken
+            ? <img src={av} alt="" onError={() => setBroken(true)} className="h-20 w-20 rounded-2xl object-cover clara-soft" />
             : <div className="h-20 w-20 rounded-2xl bg-rose-50 overflow-hidden clara-soft flex items-end justify-center">
                 <img src="/koodh-avatar.png" alt="koodh" className="h-full w-full object-cover object-top scale-110" draggable="false" />
               </div>}

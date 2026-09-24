@@ -4,7 +4,7 @@ import AppLayout from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History, Loader2, AlertTriangle } from "lucide-react";
+import { Upload, Plus, Trash2, Search, Users, X, FileSpreadsheet, Download, History, Loader2, AlertTriangle, Pencil } from "lucide-react";
 import { BearLoader } from "@/components/BearLoader";
 import { withMinDelay } from "@/lib/useLoadingGate";
 
@@ -13,6 +13,8 @@ export default function Contacts() {
   const [contacts, setContacts] = useState([]);
   const [q, setQ] = useState(searchParams.get("q") || "");
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null); // contact being edited
+  const [editForm, setEditForm] = useState({ email: "", first_name: "", last_name: "", company: "", tags: "", category_ids: [] });
   const [showImport, setShowImport] = useState(false);
   const [form, setForm] = useState({ email: "", first_name: "", last_name: "", company: "", tags: "" });
   const fileRef = useRef();
@@ -71,6 +73,39 @@ export default function Contacts() {
     await api.delete(`/contacts/${id}`);
     toast.success("Contact removed");
     load();
+  };
+
+  const openEdit = (c) => {
+    setEditForm({
+      email: c.email || "",
+      first_name: c.first_name || "",
+      last_name: c.last_name || "",
+      company: c.company || "",
+      tags: (c.tags || []).join(", "),
+      category_ids: [...(c.categories || [])],
+    });
+    setEditing(c);
+  };
+  const toggleEditCat = (id) => setEditForm((f) => ({
+    ...f,
+    category_ids: f.category_ids.includes(id) ? f.category_ids.filter((x) => x !== id) : [...f.category_ids, id],
+  }));
+  const saveEdit = async () => {
+    try {
+      await api.put(`/contacts/${editing.id}`, {
+        email: editForm.email.trim(),
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        company: editForm.company,
+        tags: editForm.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        category_ids: editForm.category_ids,
+      });
+      toast.success("Contact updated");
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+    }
   };
 
   const pickedCatIds = () => Object.keys(importCats).filter((k) => importCats[k]);
@@ -255,6 +290,10 @@ export default function Contacts() {
                   </td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <button data-testid={`edit-contact-${c.id}`} onClick={() => openEdit(c)} title="Edit contact"
+                        className="p-1.5 text-slate-400 hover:text-[#7380b6] hover:bg-[#7380b6]/10 rounded-lg transition-colors">
+                        <Pencil className="h-4 w-4" />
+                      </button>
                       <button data-testid={`history-contact-${c.id}`} onClick={() => openHistory(c)} title="Campaign history"
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
                         <History className="h-4 w-4" />
@@ -286,6 +325,39 @@ export default function Contacts() {
           <div className="flex justify-end gap-2 mt-5">
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
             <button data-testid="save-contact-btn" onClick={add} className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-full">Save</button>
+          </div>
+        </Modal>
+      )}
+
+      {editing && (
+        <Modal title="Edit contact" onClose={() => setEditing(null)}>
+          <div className="space-y-3">
+            <F label="Email *"><input data-testid="edit-email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className={inp} /></F>
+            <div className="grid grid-cols-2 gap-3">
+              <F label="First name"><input data-testid="edit-first-name" value={editForm.first_name} onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} className={inp} /></F>
+              <F label="Last name"><input data-testid="edit-last-name" value={editForm.last_name} onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} className={inp} /></F>
+            </div>
+            <F label="Company"><input data-testid="edit-company" value={editForm.company} onChange={(e) => setEditForm({ ...editForm, company: e.target.value })} className={inp} /></F>
+            {cats.length > 0 && (
+              <F label="Tags">
+                <div className="flex flex-wrap gap-2">
+                  {cats.map((c) => {
+                    const on = editForm.category_ids.includes(c.id);
+                    return (
+                      <button key={c.id} type="button" data-testid={`edit-cat-${c.id}`} onClick={() => toggleEditCat(c.id)}
+                        className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full transition-colors ${on ? "bg-[#7380b6] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                        <span className="h-2 w-2 rounded-full" style={{ background: on ? "#fff" : c.color }} /> {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </F>
+            )}
+            <F label="Custom tags (comma-separated)"><input data-testid="edit-tags" value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} className={inp} placeholder="customer, newsletter" /></F>
+          </div>
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={() => setEditing(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-full hover:bg-slate-50">Cancel</button>
+            <button data-testid="update-contact-btn" onClick={saveEdit} className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-full">Save changes</button>
           </div>
         </Modal>
       )}

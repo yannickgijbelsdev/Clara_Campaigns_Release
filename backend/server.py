@@ -23,7 +23,7 @@ from bson import ObjectId
 from db import db, client
 import auth as A
 from models import (
-    RegisterInput, LoginInput, MfaVerifyInput, ContactInput,
+    RegisterInput, LoginInput, MfaVerifyInput, ContactInput, ContactUpdateInput,
     CampaignInput, SendInput, ScheduleInput, CompanyInput,
     ForgotInput, ResetInput, MfaCodeInput, PasswordChangeInput,
     BrandingInput, AdminCompaniesInput, CategoryInput,
@@ -934,6 +934,37 @@ async def create_contact(data: ContactInput, s=Depends(scope)):
            "user_id": s["user"]["id"], "status": "subscribed", "source": "manual", "created_at": now_iso()}
     res = await db.contacts.insert_one(doc)
     doc["_id"] = res.inserted_id
+    return clean(doc)
+
+
+@api.put("/contacts/{contact_id}")
+async def update_contact(contact_id: str, data: ContactUpdateInput, s=Depends(scope)):
+    existing = await db.contacts.find_one({"_id": oid(contact_id), "company_id": s["company_id"]})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    upd = {}
+    if data.email is not None:
+        email = data.email.lower()
+        dup = await db.contacts.find_one(
+            {"company_id": s["company_id"], "email": email, "_id": {"$ne": oid(contact_id)}})
+        if dup:
+            raise HTTPException(status_code=400, detail="Another contact already uses this email")
+        upd["email"] = email
+    if data.first_name is not None:
+        upd["first_name"] = data.first_name
+    if data.last_name is not None:
+        upd["last_name"] = data.last_name
+    if data.company is not None:
+        upd["company"] = data.company
+    if data.city is not None:
+        upd["city"] = data.city
+    if data.tags is not None:
+        upd["tags"] = data.tags
+    if data.category_ids is not None:
+        upd["categories"] = data.category_ids
+    if upd:
+        await db.contacts.update_one({"_id": oid(contact_id)}, {"$set": upd})
+    doc = await db.contacts.find_one({"_id": oid(contact_id)})
     return clean(doc)
 
 

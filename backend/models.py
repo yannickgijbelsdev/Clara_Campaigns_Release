@@ -72,6 +72,16 @@ class ContactInput(BaseModel):
     category_ids: List[str] = []
 
 
+class ContactUpdateInput(BaseModel):
+    email: Optional[EmailStr] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    company: Optional[str] = None
+    city: Optional[str] = None
+    tags: Optional[List[str]] = None
+    category_ids: Optional[List[str]] = None
+
+
 class CategoryInput(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: Optional[str] = ""
