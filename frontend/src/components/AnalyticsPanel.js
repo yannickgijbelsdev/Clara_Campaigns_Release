@@ -45,7 +45,9 @@ function Panel({ title, action, children, testid }) {
 export default function AnalyticsPanel() {
   const [days, setDays] = useState(30);
   const [category, setCategory] = useState("");
+  const [campaignId, setCampaignId] = useState("");
   const [cats, setCats] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -54,13 +56,17 @@ export default function AnalyticsPanel() {
   const to = format(new Date(), "yyyy-MM-dd");
   const from = format(subDays(new Date(), days - 1), "yyyy-MM-dd");
 
-  useEffect(() => { api.get("/categories").then((r) => setCats(r.data)).catch(() => {}); }, []);
+  useEffect(() => {
+    api.get("/categories").then((r) => setCats(r.data)).catch(() => {});
+    api.get("/campaigns").then((r) => setCampaigns(r.data)).catch(() => {});
+  }, []);
   useEffect(() => {
     setLoading(true);
-    api.get(`/analytics?from=${from}&to=${to}${category ? `&category=${category}` : ""}`)
+    const q = `from=${from}&to=${to}${category ? `&category=${category}` : ""}${campaignId ? `&campaign=${campaignId}` : ""}`;
+    api.get(`/analytics?${q}`)
       .then((r) => setData(r.data)).catch(() => {}).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days, category]);
+  }, [days, category, campaignId]);
 
   const t = data?.totals;
   const shortDate = (d) => { try { return format(parseISO(d), "MMM d"); } catch { return d; } };
@@ -122,6 +128,11 @@ export default function AnalyticsPanel() {
           <p className="text-sm text-slate-500">{from} → {to}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <select data-testid="analytics-campaign-filter" value={campaignId} onChange={(e) => { setCampaignId(e.target.value); setSelectedDay(null); }}
+            className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white outline-none focus:ring-2 focus:ring-[#7380b6] max-w-[200px] truncate">
+            <option value="">All campaigns</option>
+            {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
           <select data-testid="analytics-category-filter" value={category} onChange={(e) => { setCategory(e.target.value); setSelectedDay(null); }}
             className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white outline-none focus:ring-2 focus:ring-[#7380b6]">
             <option value="">All tags</option>
@@ -203,7 +214,8 @@ export default function AnalyticsPanel() {
 
           {/* Subscriber growth + per-campaign rates */}
           <div className="grid lg:grid-cols-2 gap-5">
-            <Panel testid="chart-growth" title="Subscriber growth">
+            {!campaignId && (
+              <Panel testid="chart-growth" title="Subscriber growth">
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={data.subscriber_growth} margin={{ left: -18, right: 8, top: 6 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F7" vertical={false} />
@@ -216,6 +228,7 @@ export default function AnalyticsPanel() {
                 </BarChart>
               </ResponsiveContainer>
             </Panel>
+            )}
 
             <Panel testid="chart-campaign-rates" title="Open & click rate per campaign">
               {!campaignBars.length ? (

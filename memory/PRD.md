@@ -186,3 +186,9 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Backend: /api/analytics now returns open_times = {timezone, matrix[7][24], by_hour[24], by_weekday[7]} — opens aggregated by local weekday x hour using the workspace timezone (zoneinfo, falls back to UTC). Respects date range + category filter.
 - Frontend (AnalyticsPanel.js): new "Best time to send" panel — a weekday x hour heatmap (brand-color intensity) with the peak slot ring-highlighted, plus a plain-language recommendation ("Most opens happen on Wed around 12:00"). Horizontally scrolls inside its own container on mobile (no page overflow at 390px). Empty state when no opens tracked yet.
 - Verified with crafted open data (tz Europe/Brussels, peak Wed 12:00) on desktop + mobile. NOTE: backend change — production needs a REDEPLOY.
+
+## Changelog — 2026-06 (Iteration 28) — Move analytics off Dashboard → own Analytics page + per-campaign
+- Removed AnalyticsPanel from Dashboard.js.
+- New top-level "Analytics" nav item (BASE_NAV) + route /analytics → pages/AnalyticsDashboard.js (AppLayout + AnalyticsPanel).
+- Per-campaign: AnalyticsPanel now has a campaign selector (data-testid=analytics-campaign-filter). Backend /api/analytics accepts &campaign={id} → filters deliveries + send_events + per_campaign + by_day + open_times to that campaign; subscriber-growth is skipped when a campaign is selected (and the growth panel is hidden in the UI).
+- Verified: Dashboard clean, /analytics renders full panel, campaign filter shows single-campaign metrics (13 sent / 76.9% open / growth hidden), no mobile overflow at 390px. Existing per-campaign page /campaigns/:id/analytics unchanged. NOTE: backend change — production needs a REDEPLOY.

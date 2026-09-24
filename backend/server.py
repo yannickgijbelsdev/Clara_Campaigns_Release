@@ -1480,7 +1480,8 @@ def _day(iso):
 async def analytics(s=Depends(scope),
                     start: str = Query(None, alias="from"),
                     end: str = Query(None, alias="to"),
-                    category: str = Query("")):
+                    category: str = Query(""),
+                    campaign: str = Query("")):
     cid = s["company_id"]
     today = datetime.now(timezone.utc).date()
     try:
@@ -1519,6 +1520,8 @@ async def analytics(s=Depends(scope),
     deliveries = await db.deliveries.find({"company_id": cid}).to_list(100000)
     if cat_contact_ids is not None:
         deliveries = [d for d in deliveries if d.get("contact_id") in cat_contact_ids]
+    if campaign:
+        deliveries = [d for d in deliveries if d.get("campaign_id") == campaign]
 
     # Best-send-time: opens aggregated by local weekday (0=Mon) x hour (0-23)
     open_matrix = [[0] * 24 for _ in range(7)]
@@ -1576,6 +1579,8 @@ async def analytics(s=Depends(scope),
         ed = _day(e.get("ts"))
         if not in_range(ed):
             continue
+        if campaign and e.get("campaign_id") != campaign:
+            continue
         st = e.get("send_type", "other")
         if category and st != "test" and category not in (e.get("category_ids") or []):
             continue
@@ -1591,16 +1596,17 @@ async def analytics(s=Depends(scope),
 
     growth_added = {d: 0 for d in days}
     growth_unsub = {d: 0 for d in days}
-    contacts_all = await db.contacts.find({"company_id": cid}).to_list(200000)
-    for c in contacts_all:
-        if cat_contact_ids is not None and str(c["_id"]) not in cat_contact_ids:
-            continue
-        cd = _day(c.get("created_at"))
-        if in_range(cd):
-            growth_added[cd] += 1
-        ud = _day(c.get("unsubscribed_at"))
-        if c.get("status") == "unsubscribed" and in_range(ud):
-            growth_unsub[ud] += 1
+    if not campaign:
+        contacts_all = await db.contacts.find({"company_id": cid}).to_list(200000)
+        for c in contacts_all:
+            if cat_contact_ids is not None and str(c["_id"]) not in cat_contact_ids:
+                continue
+            cd = _day(c.get("created_at"))
+            if in_range(cd):
+                growth_added[cd] += 1
+            ud = _day(c.get("unsubscribed_at"))
+            if c.get("status") == "unsubscribed" and in_range(ud):
+                growth_unsub[ud] += 1
 
     timeseries = [{"date": d, "sent": day_sent[d], "opened": day_open[d], "clicked": day_click[d]} for d in days]
     growth = [{"date": d, "added": growth_added[d], "unsubscribed": growth_unsub[d],

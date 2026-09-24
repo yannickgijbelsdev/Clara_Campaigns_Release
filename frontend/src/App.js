@@ -17,6 +17,7 @@ import SubscribePage from "@/pages/SubscribePage";
 import Integrations from "@/pages/Integrations";
 import Settings from "@/pages/Settings";
 import Analytics from "@/pages/Analytics";
+import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
 import Admin from "@/pages/Admin";
 import ResetPassword from "@/pages/ResetPassword";
 
@@ -59,6 +60,7 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
             <Route path="/campaigns" element={<Protected><Campaigns /></Protected>} />
+            <Route path="/analytics" element={<Protected><AnalyticsDashboard /></Protected>} />
             <Route path="/campaigns/new" element={<Protected><Builder /></Protected>} />
             <Route path="/campaigns/:id" element={<Protected><Builder /></Protected>} />
             <Route path="/campaigns/:id/analytics" element={<Protected><Analytics /></Protected>} />

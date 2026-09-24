@@ -19,6 +19,7 @@ export const avatarUrl = (u) =>
 const BASE_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/campaigns", label: "Campaigns" },
+  { to: "/analytics", label: "Analytics" },
   { to: "/contacts", label: "Contacts" },
   { to: "/branding", label: "Branding" },
   { to: "/developers", label: "API" },
