@@ -136,6 +136,13 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Prod stability: hardened all `os.environ["BACKEND_URL"]`/`PUBLIC_BASE_URL`/`FRONTEND_URL` accesses (added `_public_base()` + `.get` fallbacks) so /subscribe/settings, /campaigns/{id}/test and sends can't 500 when those env vars are unset (root cause of production "Something went wrong"). Generic API error message switched to English. NOTE: production needs a REDEPLOY, and ideally PUBLIC_BASE_URL set to https://campaigns.koodh.com for correct public/tracking links.
 - Newsletter editor: text block now uses TinyMCE (self-hosted via jsDelivr CDN, GPL license, no API key) for bold/italic/underline, lists, links, colors, alignment. (Implemented + compiles; full functional test still pending.)
 
+## Changelog — 2026-06 (Iteration 20) — Email links/footer/unsubscribe + TinyMCE spacing
+- TinyMCE text block: editor formatting (bold) and paragraph/enter spacing now MATCH the Preview (p{margin:0 0 16px} in both editor content_style and the email render via inline <p> styles).
+- Email footer: removed 'Manage your preferences'; footer now shows only an 'Unsubscribe' pill button.
+- Unsubscribe is now a PUBLIC two-step page: GET /api/unsubscribe/{token} shows a confirmation page with an Unsubscribe button (does NOT unsubscribe); POST performs the unsubscribe. Invalid token → 404 page.
+- Absolute links: _public_base() falls back to https://campaigns.koodh.com; _run_send + /campaigns/{id}/test use it, so tracking/unsub/pixel hrefs are always absolute (fixes the `[relative-url]text` rendering in mail clients). Verified via testing agent (iteration_20).
+- NOTE: production still needs a REDEPLOY for all the above + earlier env-safety fixes to take effect; ideally set PUBLIC_BASE_URL on prod too.
+
 ## Known deployment findings (backlog, not blocking auth)
 - Integrations.js hardcodes the Microsoft OAuth redirect URL (campaigns.koodh.com) — fine for the koodh production domain but should be env-driven for portability.
 - GET /api/campaigns runs N+1 count queries for stats — consider an aggregation pipeline for scale.

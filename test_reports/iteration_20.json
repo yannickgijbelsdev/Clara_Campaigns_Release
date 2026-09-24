@@ -1,0 +1,22 @@
+{
+  "summary": "Verified all three fixes: (1) TinyMCE editor content (paragraphs + bold) matches the Preview modal exactly. (2) Email footer contains only an 'Unsubscribe' button and does NOT include 'Manage your preferences'. (3) Unsubscribe is two-step: GET renders a confirmation page with a POST form button and does NOT change status; POST actually sets contact status to 'unsubscribed'. Also confirmed personalize_html rewrites hrefs to absolute https URLs (backend_url/api/track/click/...). Invalid unsubscribe token returns 404 invalid-link page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter20_unsubscribe.py",
+    "/app/test_reports/pytest/iter20.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is >1500 lines - consider splitting into routers (auth/campaigns/contacts/tracking/unsubscribe) for maintainability.",
+    "emailHtml.js text block: regex replace does not add margin to <p> tags that already carry a style attribute (e.g., <p style=...>). TinyMCE currently outputs bare <p>, so preview works today, but any future editor change adding inline styles would silently break spacing. Consider a parser-based approach or a more permissive regex."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter20_unsubscribe.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (TinyMCE↔Preview verified)"},
+  "test_credentials": "Admin yannick.gijbels@koodh.com / KYLovie13monx, TOTP VLGJTATFHVFPTFV7Q4FQL3ATFOGVVB5Q",
+  "seed_data_creation": "Created and cleaned up one TEST_ contact per unsubscribe flow test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "backend test file tests/test_iter20_unsubscribe.py exercises make_unsub_token, GET/POST /api/unsubscribe/{token}, personalize_html footer + absolute tracking href, and invalid-token 404. It loads /app/backend/.env before importing auth.",
+  "rca of the issue": "N/A - all three fixes verified working."
+}
