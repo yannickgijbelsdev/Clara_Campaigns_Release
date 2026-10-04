@@ -275,8 +275,8 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
           <div className="flex items-center gap-2.5 shrink-0">
             <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
-            <div className="hidden 2xl:block h-5 w-px bg-slate-200/70" />
-            <span className="hidden 2xl:block font-display font-semibold text-slate-900 text-[15px] whitespace-nowrap">Clara Campaigns</span>
+            <div className="hidden xl:block h-5 w-px bg-slate-200/70" />
+            <span className="hidden xl:block font-display font-semibold text-slate-900 text-[15px] whitespace-nowrap">Clara Campaigns</span>
             <BrandMenu />
           </div>
           <div className="hidden 2xl:flex items-center gap-1.5 mr-1">
@@ -299,12 +299,12 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           </div>
           <WorkspaceSwitcher />
 
-          <nav className="hidden xl:flex items-center gap-0.5 ml-3 flex-1">
+          <nav className="hidden xl:flex items-center gap-0.5 ml-3 flex-1 min-w-0 overflow-x-auto nav-scroll">
             {NAV.map(({ to, label }) => {
               const active = location.pathname === to || location.pathname.startsWith(to + "/");
               return (
                 <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
-                  className="relative flex items-center px-3.5 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900 whitespace-nowrap">
+                  className="relative flex items-center shrink-0 px-3 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900 whitespace-nowrap">
                   {active && (
                     <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full shadow-lg shadow-slate-900/25"
                       transition={{ type: "spring", stiffness: 400, damping: 34 }} />

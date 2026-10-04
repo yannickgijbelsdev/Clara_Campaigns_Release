@@ -188,3 +188,7 @@ h1, h2, h3, h4, .font-display {
 .tox.tox-tinymce.tox-tinymce--focus { border-color: #7380b6 !important; box-shadow: none !important; }
 .tox .tox-edit-area::before { border: none !important; box-shadow: none !important; }
 .tox:not(.tox-tinymce-inline) .tox-editor-header { box-shadow: none !important; }
+
+/* Hide scrollbar on the top nav when it scrolls internally */
+.nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.nav-scroll::-webkit-scrollbar { display: none; }
