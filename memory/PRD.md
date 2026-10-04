@@ -195,3 +195,7 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 
 ## Changelog — 2026-06 (Iteration 29) — Show "Clara Campaigns" wordmark in top menu
 - AppLayout header: the "Clara Campaigns" wordmark (bears Logo + divider + text) now shows from xl (was 2xl), matching the login page. To avoid the 1280–1440px header overflow, the desktop nav got min-w-0 + overflow-x-auto (nav-scroll class in index.css hides the scrollbar) so it shrinks/scrolls internally instead of pushing the right group off-screen; nav item padding tightened px-3.5→px-3 and items shrink-0. Verified wordmark visible + no page overflow at 1280/1366/1440/1536/1920.
+
+## Changelog — 2026-06 (Iteration 30) — Nav overflow "More" menu
+- Replaced the desktop nav internal-scroll with a proper overflow menu (new DesktopNav component in AppLayout.js). It measures item widths (hidden measuring row + ResizeObserver) against the available nav width (header capped at max-w-1400) and renders the items that fit; the rest collapse into a "More ▾" dropdown (data-testid nav-more-btn / nav-more-menu). The More button highlights when the active route is a hidden item. Fixes Administration being hidden behind the right-side search/help/avatar group.
+- Verified at 1280/1366/1440/1536/1920: no page overflow; overflow items (e.g. Email/SMTP, Administration) appear in the More dropdown and navigate correctly (Administration → /admin).

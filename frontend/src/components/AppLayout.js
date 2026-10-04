@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail, API } from "@/lib/api";
@@ -25,6 +25,108 @@ const BASE_NAV = [
   { to: "/developers", label: "API" },
   { to: "/integrations", label: "Email / SMTP" },
 ];
+
+function DesktopNav({ items, setupOk }) {
+  const location = useLocation();
+  const navRef = useRef(null);
+  const measureRef = useRef(null);
+  const moreRef = useRef(null);
+  const [visibleCount, setVisibleCount] = useState(items.length);
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    const compute = () => {
+      const nav = navRef.current, measure = measureRef.current;
+      if (!nav || !measure) return;
+      const avail = nav.clientWidth;
+      const widths = [...measure.children].map((c) => c.getBoundingClientRect().width);
+      const gap = 2, MORE = 92;
+      const totalAll = widths.reduce((a, b) => a + b + gap, 0);
+      if (totalAll <= avail) { setVisibleCount(items.length); return; }
+      let used = MORE, count = 0;
+      for (let i = 0; i < widths.length; i++) {
+        if (used + widths[i] + gap <= avail) { used += widths[i] + gap; count++; } else break;
+      }
+      setVisibleCount(Math.max(1, count));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    if (navRef.current) ro.observe(navRef.current);
+    return () => ro.disconnect();
+  }, [items]);
+
+  useEffect(() => {
+    const h = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + "/");
+  const visible = items.slice(0, visibleCount);
+  const hidden = items.slice(visibleCount);
+  const activeHidden = hidden.some((it) => isActive(it.to));
+
+  return (
+    <nav ref={navRef} className="hidden xl:flex items-center gap-0.5 ml-3 flex-1 min-w-0 relative">
+      {/* hidden measuring row */}
+      <div ref={measureRef} aria-hidden className="absolute invisible pointer-events-none flex items-center gap-0.5" style={{ left: -99999, top: 0 }}>
+        {items.map(({ to, label }) => (
+          <span key={to} className="flex items-center px-3 py-2 text-sm font-medium whitespace-nowrap gap-1.5">
+            {label}{setupOk[to] && <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
+          </span>
+        ))}
+      </div>
+
+      {visible.map(({ to, label }) => {
+        const active = isActive(to);
+        return (
+          <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
+            className="relative flex items-center shrink-0 px-3 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900 whitespace-nowrap">
+            {active && (
+              <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full shadow-lg shadow-slate-900/25"
+                transition={{ type: "spring", stiffness: 400, damping: 34 }} />
+            )}
+            <span className={`relative z-10 whitespace-nowrap flex items-center gap-1.5 ${active ? "text-white" : "text-slate-500"}`}>
+              {label}
+              {setupOk[to] && (
+                <span data-testid={`nav-check-${to.slice(1)}`} className="flex items-center justify-center">
+                  <Check className={`h-3.5 w-3.5 ${active ? "text-white/80" : "text-[#7380b6]/70"}`} strokeWidth={2.5} />
+                </span>
+              )}
+            </span>
+          </NavLink>
+        );
+      })}
+
+      {hidden.length > 0 && (
+        <div ref={moreRef} className="relative shrink-0">
+          <button data-testid="nav-more-btn" onClick={() => setMoreOpen((v) => !v)}
+            className={`relative flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium clara-trans whitespace-nowrap ${activeHidden ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"}`}>
+            More <ChevronDown className={`h-3.5 w-3.5 clara-trans ${moreOpen ? "rotate-180" : ""}`} />
+          </button>
+          <AnimatePresence>
+            {moreOpen && (
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}
+                className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl clara-soft ring-1 ring-slate-100 py-1.5 z-50" data-testid="nav-more-menu">
+                {hidden.map(({ to, label }) => {
+                  const active = isActive(to);
+                  return (
+                    <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`} onClick={() => setMoreOpen(false)}
+                      className={`flex items-center justify-between gap-2 px-4 py-2.5 text-sm clara-trans ${active ? "text-[#7380b6] font-semibold bg-[#7380b6]/5" : "text-slate-600 hover:bg-slate-50"}`}>
+                      <span>{label}</span>
+                      {setupOk[to] && <Check className="h-3.5 w-3.5 text-[#7380b6]/70" strokeWidth={2.5} />}
+                    </NavLink>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </nav>
+  );
+}
+
 
 function WorkspaceSwitcher() {
   const { companies, activeCompany, setActiveCompany, loadCompanies } = useAuth();
@@ -299,28 +401,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
           </div>
           <WorkspaceSwitcher />
 
-          <nav className="hidden xl:flex items-center gap-0.5 ml-3 flex-1 min-w-0 overflow-x-auto nav-scroll">
-            {NAV.map(({ to, label }) => {
-              const active = location.pathname === to || location.pathname.startsWith(to + "/");
-              return (
-                <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
-                  className="relative flex items-center shrink-0 px-3 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900 whitespace-nowrap">
-                  {active && (
-                    <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full shadow-lg shadow-slate-900/25"
-                      transition={{ type: "spring", stiffness: 400, damping: 34 }} />
-                  )}
-                  <span className={`relative z-10 whitespace-nowrap flex items-center gap-1.5 ${active ? "text-white" : "text-slate-500"}`}>
-                    {label}
-                    {setupOk[to] && (
-                      <span data-testid={`nav-check-${to.slice(1)}`} className="flex items-center justify-center">
-                        <Check className={`h-3.5 w-3.5 ${active ? "text-white/80" : "text-[#7380b6]/70"}`} strokeWidth={2.5} />
-                      </span>
-                    )}
-                  </span>
-                </NavLink>
-              );
-            })}
-          </nav>
+          <DesktopNav items={NAV} setupOk={setupOk} />
 
           <div className="flex items-center gap-3 ml-auto">
             <button data-testid="global-search-btn" onClick={() => setSearchOpen(true)} title="Search (⌘K)"
