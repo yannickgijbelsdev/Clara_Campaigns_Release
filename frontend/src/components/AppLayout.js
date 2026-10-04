@@ -10,7 +10,7 @@ import { ProgressOverlay } from "@/components/ProgressOverlay";
 import { startTour } from "@/lib/useTour";
 import { toast } from "sonner";
 import {
-  LogOut, AlertCircle, ChevronDown, Plus, Check, X, Globe, Gem, Lock, Search, ShieldCheck, HelpCircle, ExternalLink,
+  LogOut, AlertCircle, ChevronDown, Plus, Check, X, Globe, Crown, Lock, Search, ShieldCheck, HelpCircle, ExternalLink,
 } from "lucide-react";
 
 export const avatarUrl = (u) =>
@@ -303,7 +303,7 @@ function UserMenu() {
             </button>
             <button data-testid="menu-plans" onClick={() => { setOpen(false); navigate("/plans"); }}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-slate-50 text-left text-sm text-slate-700 clara-trans">
-              <Gem className="h-4 w-4 text-slate-400" /> Plans &amp; billing
+              <Crown className="h-4 w-4 text-slate-400" /> Plans &amp; billing
             </button>
             <button data-testid="logout-btn" onClick={logout}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-rose-50 text-left text-sm text-rose-600 clara-trans">
@@ -381,10 +381,11 @@ export default function AppLayout({ children, title, subtitle, actions }) {
             <span className="hidden xl:block font-display font-semibold text-slate-900 text-[15px] whitespace-nowrap">Clara Campaigns</span>
             <BrandMenu />
           </div>
-          <div className="hidden 2xl:flex items-center gap-1.5 mr-1">
+          <div className="hidden xl:flex items-center gap-1.5 mr-1">
             <button onClick={() => navigate("/plans")} className="relative group" data-testid="plan-chip">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 clara-trans hover:bg-amber-100">
-                <Gem className="h-[17px] w-[17px]" />
+              <span className="absolute -inset-0.5 rounded-full plan-pulse-ring ring-2 ring-amber-400/70" />
+              <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 ring-1 ring-amber-300/80 clara-trans hover:bg-amber-100">
+                <Crown className="h-[17px] w-[17px]" />
               </span>
               <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 whitespace-nowrap rounded-lg bg-slate-900 text-white text-xs px-2.5 py-1 opacity-0 group-hover:opacity-100 clara-trans capitalize z-50">
                 {(user?.license?.plan || "free")} plan · manage

@@ -199,3 +199,6 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 ## Changelog — 2026-06 (Iteration 30) — Nav overflow "More" menu
 - Replaced the desktop nav internal-scroll with a proper overflow menu (new DesktopNav component in AppLayout.js). It measures item widths (hidden measuring row + ResizeObserver) against the available nav width (header capped at max-w-1400) and renders the items that fit; the rest collapse into a "More ▾" dropdown (data-testid nav-more-btn / nav-more-menu). The More button highlights when the active route is a hidden item. Fixes Administration being hidden behind the right-side search/help/avatar group.
 - Verified at 1280/1366/1440/1536/1920: no page overflow; overflow items (e.g. Email/SMTP, Administration) appear in the More dropdown and navigate correctly (Administration → /admin).
+
+## Changelog — 2026-06 (Iteration 31) — Plan chip restored: Crown icon + pulse outline
+- Plan chip (and lock/2FA chip) container shown from xl again (was 2xl) — safe now that nav overflow collapses into the "More" menu. Gem icon replaced with Crown (better fit for plan/upgrade). Added a pulsing amber outline ring (.plan-pulse-ring keyframes in index.css) + static amber ring so the plan chip stands out. UserMenu "Plans & billing" item also uses Crown. Verified visible + no page overflow at 1280/1366/1440/1920.
