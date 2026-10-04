@@ -379,6 +379,13 @@ export default function AppLayout({ children, title, subtitle, actions }) {
             <button onClick={() => navigate("/dashboard")} data-testid="brand-logo"><Logo /></button>
             <div className="hidden xl:block h-5 w-px bg-slate-200/70" />
             <span className="hidden xl:block font-display font-semibold text-slate-900 text-[15px] whitespace-nowrap">Clara Campaigns</span>
+            <span data-testid="plan-badge" title={`${user?.license?.plan || "free"} plan`}
+              className={`hidden xl:inline-flex items-center rounded-full text-[10px] font-display font-bold uppercase tracking-wide px-2 py-0.5 ${
+                ["free", "", undefined, null].includes(user?.license?.plan)
+                  ? "bg-slate-100 text-slate-500"
+                  : "bg-amber-100 text-amber-700 ring-1 ring-amber-300/60"}`}>
+              {user?.license?.plan || "free"}
+            </span>
             <BrandMenu />
           </div>
           <div className="hidden xl:flex items-center gap-1.5 mr-1">

@@ -210,3 +210,6 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 - Backend: campaigns now store created_by + updated_by (update_campaign sets updated_by on every save). GET /api/campaigns resolves these to user briefs (id, name, avatar_url/avatar_path/avatar_version) and returns `creator` + `editor` on each campaign (fallback to legacy user_id).
 - Frontend (Campaigns.js): each campaign card shows "Created by [avatar] Name · <date>" and "Last edited by [avatar] Name · <relative time>" (date-fns). MiniUser uses the avatarUrl proxy helper with an initial-letter fallback.
 - Also made the campaign cards responsive: stack on mobile (flex-col sm:flex-row), action buttons wrap, card min-w-0, byline segments flex-wrap. Fixed mobile horizontal overflow (now scrollWidth===clientWidth at 390). NOTE: backend change — production needs a REDEPLOY.
+
+## Changelog — 2026-06 (Iteration 34) — Plan badge next to wordmark
+- AppLayout: small uppercase plan badge (data-testid=plan-badge) shown right of the "Clara Campaigns" wordmark (xl+). Free = slate pill, paid/enterprise = amber pill with ring. Reads user.license.plan.
