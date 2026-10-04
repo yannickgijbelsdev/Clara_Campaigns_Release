@@ -202,3 +202,6 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 
 ## Changelog — 2026-06 (Iteration 31) — Plan chip restored: Crown icon + pulse outline
 - Plan chip (and lock/2FA chip) container shown from xl again (was 2xl) — safe now that nav overflow collapses into the "More" menu. Gem icon replaced with Crown (better fit for plan/upgrade). Added a pulsing amber outline ring (.plan-pulse-ring keyframes in index.css) + static amber ring so the plan chip stands out. UserMenu "Plans & billing" item also uses Crown. Verified visible + no page overflow at 1280/1366/1440/1920.
+
+## Changelog — 2026-06 (Iteration 32) — Menu nav labels match wordmark font
+- Nav labels now use font-display (Outfit) to match the "Clara Campaigns" wordmark (previously body font Plus Jakarta Sans). Applied to desktop NavLinks, the More button + More dropdown items, and the mobile nav. Verified computed fontFamily = Outfit for both wordmark and nav labels.

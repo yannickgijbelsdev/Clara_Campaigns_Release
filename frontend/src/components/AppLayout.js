@@ -81,7 +81,7 @@ function DesktopNav({ items, setupOk }) {
         const active = isActive(to);
         return (
           <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`}
-            className="relative flex items-center shrink-0 px-3 py-2 rounded-full text-sm font-medium clara-trans hover:text-slate-900 whitespace-nowrap">
+            className="relative flex items-center shrink-0 px-3 py-2 rounded-full text-sm font-display font-medium clara-trans hover:text-slate-900 whitespace-nowrap">
             {active && (
               <motion.span layoutId="nav-pill" className="absolute inset-0 bg-slate-900 rounded-full shadow-lg shadow-slate-900/25"
                 transition={{ type: "spring", stiffness: 400, damping: 34 }} />
@@ -101,7 +101,7 @@ function DesktopNav({ items, setupOk }) {
       {hidden.length > 0 && (
         <div ref={moreRef} className="relative shrink-0">
           <button data-testid="nav-more-btn" onClick={() => setMoreOpen((v) => !v)}
-            className={`relative flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium clara-trans whitespace-nowrap ${activeHidden ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"}`}>
+            className={`relative flex items-center gap-1 px-3 py-2 rounded-full text-sm font-display font-medium clara-trans whitespace-nowrap ${activeHidden ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"}`}>
             More <ChevronDown className={`h-3.5 w-3.5 clara-trans ${moreOpen ? "rotate-180" : ""}`} />
           </button>
           <AnimatePresence>
@@ -112,7 +112,7 @@ function DesktopNav({ items, setupOk }) {
                   const active = isActive(to);
                   return (
                     <NavLink key={to} to={to} data-testid={`nav-${to.slice(1)}`} onClick={() => setMoreOpen(false)}
-                      className={`flex items-center justify-between gap-2 px-4 py-2.5 text-sm clara-trans ${active ? "text-[#7380b6] font-semibold bg-[#7380b6]/5" : "text-slate-600 hover:bg-slate-50"}`}>
+                      className={`flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-display clara-trans ${active ? "text-[#7380b6] font-semibold bg-[#7380b6]/5" : "text-slate-600 hover:bg-slate-50"}`}>
                       <span>{label}</span>
                       {setupOk[to] && <Check className="h-3.5 w-3.5 text-[#7380b6]/70" strokeWidth={2.5} />}
                     </NavLink>
@@ -422,7 +422,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         <nav className="xl:hidden flex items-center gap-1 px-4 pb-3 overflow-x-auto">
           {NAV.map(({ to, label }) => (
             <NavLink key={to} to={to}
-              className={({ isActive }) => `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-slate-100"}`}>
+              className={({ isActive }) => `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-display font-medium whitespace-nowrap ${isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-slate-100"}`}>
               {label}
               {setupOk[to] && (
                 <span className="flex items-center justify-center">
