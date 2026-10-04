@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import AppLayout, { PrimaryButton } from "@/components/AppLayout";
+import { formatDistanceToNow, format } from "date-fns";
+import AppLayout, { PrimaryButton, avatarUrl } from "@/components/AppLayout";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { BarChart3, Pencil, Trash2, Plus, Mail, Clock, CalendarX2 } from "lucide-react";
@@ -60,6 +61,26 @@ function CampaignThumb({ html, name }) {
   );
 }
 
+function MiniUser({ user }) {
+  const av = user ? avatarUrl(user) : null;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {av ? (
+        <img src={av} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+          className="h-5 w-5 rounded-full object-cover ring-1 ring-slate-200" />
+      ) : (
+        <span className="h-5 w-5 rounded-full bg-[#7380b6]/15 text-[#7380b6] text-[10px] font-semibold flex items-center justify-center">
+          {(user?.name || "?").slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      <span className="text-slate-600 font-medium">{user?.name || "Unknown"}</span>
+    </span>
+  );
+}
+
+const relTime = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; } };
+const absDate = (iso) => { try { return format(new Date(iso), "d MMM yyyy"); } catch { return ""; } };
+
 export default function Campaigns() {
   const [items, setItems] = useState([]);
   const navigate = useNavigate();
@@ -108,7 +129,8 @@ export default function Campaigns() {
           {items.map((c, i) => (
             <motion.div key={c.id} data-testid={`campaign-card-${c.id}`}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-              className="bg-white rounded-3xl clara-soft clara-hover clara-trans p-4 flex items-center gap-4">
+              className="bg-white rounded-3xl clara-soft clara-hover clara-trans p-4 flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
+              <div className="flex items-center gap-4 min-w-0 flex-1 w-full">
               <CampaignThumb html={c.html} name={c.name} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2.5">
@@ -128,8 +150,23 @@ export default function Campaigns() {
                     <span>{c.stats?.clicked || 0} clicked</span>
                   </div>
                 )}
+                <div data-testid={`campaign-byline-${c.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-400">
+                  {c.creator && (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      Created by <MiniUser user={c.creator} />
+                      {c.created_at && <span className="text-slate-400">· {absDate(c.created_at)}</span>}
+                    </span>
+                  )}
+                  {c.editor && (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      Last edited by <MiniUser user={c.editor} />
+                      {c.updated_at && <span className="text-slate-400">· {relTime(c.updated_at)}</span>}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              </div>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto justify-end">
                 {c.status === "scheduled" && (
                   <button data-testid={`unschedule-${c.id}`} onClick={(e) => unschedule(c.id, e)}
                     className="inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 border border-sky-200 bg-sky-50 text-sky-700 rounded-full hover:bg-sky-100 transition-colors">

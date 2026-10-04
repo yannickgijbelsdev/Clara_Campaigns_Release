@@ -205,3 +205,8 @@ See /app/memory/test_credentials.md (admin@claracampaigns.com / Admin123!).
 
 ## Changelog — 2026-06 (Iteration 32) — Menu nav labels match wordmark font
 - Nav labels now use font-display (Outfit) to match the "Clara Campaigns" wordmark (previously body font Plus Jakarta Sans). Applied to desktop NavLinks, the More button + More dropdown items, and the mobile nav. Verified computed fontFamily = Outfit for both wordmark and nav labels.
+
+## Changelog — 2026-06 (Iteration 33) — Campaign byline: creator + last editor with avatar
+- Backend: campaigns now store created_by + updated_by (update_campaign sets updated_by on every save). GET /api/campaigns resolves these to user briefs (id, name, avatar_url/avatar_path/avatar_version) and returns `creator` + `editor` on each campaign (fallback to legacy user_id).
+- Frontend (Campaigns.js): each campaign card shows "Created by [avatar] Name · <date>" and "Last edited by [avatar] Name · <relative time>" (date-fns). MiniUser uses the avatarUrl proxy helper with an initial-letter fallback.
+- Also made the campaign cards responsive: stack on mobile (flex-col sm:flex-row), action buttons wrap, card min-w-0, byline segments flex-wrap. Fixed mobile horizontal overflow (now scrollWidth===clientWidth at 390). NOTE: backend change — production needs a REDEPLOY.

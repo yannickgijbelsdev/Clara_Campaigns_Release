@@ -1092,6 +1092,19 @@ async def import_contacts(
 @api.get("/campaigns")
 async def list_campaigns(s=Depends(scope)):
     rows = await db.campaigns.find({"company_id": s["company_id"]}).sort("updated_at", -1).to_list(1000)
+    # resolve the user ids referenced by the campaigns (creator + last editor)
+    uids = set()
+    for r in rows:
+        for k in ("created_by", "user_id", "updated_by"):
+            if r.get(k):
+                uids.add(r[k])
+    umap = {}
+    for u in await db.users.find({"_id": {"$in": [oid(x) for x in uids if x]}}).to_list(2000):
+        umap[str(u["_id"])] = {
+            "id": str(u["_id"]), "name": u.get("name") or u.get("email", "").split("@")[0],
+            "avatar_url": u.get("avatar_url"), "avatar_path": u.get("avatar_path"),
+            "avatar_version": u.get("avatar_version", 0),
+        }
     out = []
     for r in rows:
         cid = str(r["_id"])
@@ -1101,13 +1114,17 @@ async def list_campaigns(s=Depends(scope)):
             "opened": await db.deliveries.count_documents({"campaign_id": cid, "opened": True}),
             "clicked": await db.deliveries.count_documents({"campaign_id": cid, "clicked": True}),
         }
+        c["creator"] = umap.get(r.get("created_by") or r.get("user_id"))
+        c["editor"] = umap.get(r.get("updated_by") or r.get("created_by") or r.get("user_id"))
         out.append(c)
     return out
 
 
 @api.post("/campaigns")
 async def create_campaign(data: CampaignInput, s=Depends(scope)):
-    doc = {**data.model_dump(), "company_id": s["company_id"], "user_id": s["user"]["id"],
+    uid = s["user"]["id"]
+    doc = {**data.model_dump(), "company_id": s["company_id"], "user_id": uid,
+           "created_by": uid, "updated_by": uid,
            "status": "draft", "created_at": now_iso(), "updated_at": now_iso()}
     res = await db.campaigns.insert_one(doc)
     doc["_id"] = res.inserted_id
@@ -1127,7 +1144,7 @@ async def update_campaign(campaign_id: str, data: CampaignInput, s=Depends(scope
     r = await db.campaigns.find_one({"_id": oid(campaign_id), "company_id": s["company_id"]})
     if not r:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    await db.campaigns.update_one({"_id": r["_id"]}, {"$set": {**data.model_dump(), "updated_at": now_iso()}})
+    await db.campaigns.update_one({"_id": r["_id"]}, {"$set": {**data.model_dump(), "updated_at": now_iso(), "updated_by": s["user"]["id"]}})
     return clean(await db.campaigns.find_one({"_id": r["_id"]}))
 
 
